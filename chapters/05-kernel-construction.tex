@@ -1,0 +1,177 @@
+\chapter{From Observed Movement to Transition Models}
+\label{chap:kernels}
+
+\section{Empirical movement steps}
+
+\begin{itemize}
+  \item Compute displacement, step length, heading, and turning angle from consecutive valid projected fixes.
+  \item Associate every training step with:
+  \begin{itemize}
+    \item its physical observation interval;
+    \item the state assigned to its source point or segment;
+    \item source and destination terrain;
+    \item gap, validity, and provenance information.
+  \end{itemize}
+  \item Do not manufacture a different correlated-kernel interval by linearly dividing or multiplying empirical displacements.
+  \item For Brownian kernels, permit an explicit shorter model interval only through the documented diffusion/time transformation.
+  \item Exclude state--animal groups with too few valid steps and report them as insufficient rather than silently pooling them.
+\end{itemize}
+
+\section{Kernel families and density estimation}
+
+\begin{itemize}
+  \item \textbf{Brownian kernel:} isotropic reference model in which probability depends on displacement magnitude and diffusion scale.
+  \item \textbf{Correlated kernel:} condition the next displacement on the incoming heading to retain directional persistence or reversal.
+  \item \textbf{State dependence:} fit separate kernels to the movement steps assigned to each behavioral state.
+  \item \textbf{Density models:} compare regularized Gaussian mixtures, adaptive mixtures, Bayesian mixtures, and fixed legacy settings already represented in the saved kernel experiments.
+  \item \textbf{Diagnostics:}
+  \begin{itemize}
+    \item training-point and valid-step counts;
+    \item normalization and retained mass;
+    \item step-length and turning-angle fit;
+    \item component stability and covariance regularization;
+    \item differences between states on a common physical scale.
+  \end{itemize}
+\end{itemize}
+
+\section{Physical support and discretization}
+
+\begin{itemize}
+  \item Fit the density to the original metric offsets before rasterizing it.
+  \item Choose the smallest centered square containing a specified probability mass, with $0.99$ as the current default rather than an arbitrary common range.
+  \item Convert physical radius $R$ to the realized walk-grid support radius $S=\lceil R/c\rceil$ for cell width $c$.
+  \item Store cell-average densities from integrated cell probabilities and normalize the final discrete kernel.
+  \item Preserve separate support radii for states whose empirical movement scales differ.
+  \item Candidate evidence:
+  \begin{itemize}
+    \item \code{/home/omar/Desktop/generated\_kernels/};
+    \item \code{/home/omar/Desktop/kernel\_postprocess\_experiments/};
+    \item \code{/home/omar/Desktop/MSc Thesis/bettongs/summary.csv};
+    \item kernel implementations and tests in \code{/home/omar/PycharmProjects/RW-Python-gitlab/}.
+  \end{itemize}
+\end{itemize}
+
+\section{Environment-aware transition matrices}
+\label{sec:environment-transitions}
+
+This section follows Sections~3.4--3.5 of the coauthored manuscript \parencite{buchin2026advanced}. The random-walk model permits a location-, heading-, and time-dependent matrix $M_{x,y,d,t}$. Environmental processing modifies this base matrix immediately before the dynamic-programming update, allowing the same computational framework to represent unrestricted movement, discouraged terrain, and impassable barriers.
+
+Let $G\subset\mathbb{Z}^2$ be the grid and let $\ell:G\rightarrow\mathcal{L}$ assign a terrain class to every cell. Let $\mathcal{B}\subseteq\mathcal{L}$ denote barrier classes and $\mathcal{P}=\mathcal{L}\setminus\mathcal{B}$ passable classes.
+
+\subsection{Hard reachability for barriers}
+\label{sec:hard-reachability}
+
+Testing only the destination cell would permit a long step to jump across a narrow barrier. Hard reachability therefore checks all cells visited by the rasterized segment from source $p$ to candidate destination $p+\delta$. With $\operatorname{ray}(p,p+\delta)$ computed by Bresenham's line algorithm \parencite{bresenham1965line}, define
+\begin{equation}
+  H_{\mathrm{hard}}(p,\delta)=
+  \begin{cases}
+    1, & \ell(q)\notin\mathcal{B}\text{ for every }q\in\operatorname{ray}(p,p+\delta),\\
+    0, & \text{otherwise.}
+  \end{cases}
+\end{equation}
+If the source itself is a barrier, no outgoing hard transition is feasible. If the local neighborhood contains no barrier, the base matrix is reused. Otherwise the environment-aware matrix is
+\begin{equation}
+  M^H_{x,y,d,t}=\operatorname{normalize}\!\left(
+    M_{x,y,d,t}\odot H_{\mathrm{hard}}(p,\cdot)
+  \right).
+\end{equation}
+A zero sum after masking represents a genuine no-path condition and must remain distinguishable from an ordinary normalized kernel.
+
+\subsection{Relaxed barriers}
+\label{sec:relaxed-reachability}
+
+Relaxed handling supports a passable source whose candidate step crosses discouraged terrain and a source already located inside barrier terrain. For a rasterized candidate path
+\begin{equation}
+  \pi(p,p+\delta)=(q_0,\ldots,q_m),\qquad q_0=p,\quad q_m=p+\delta,
+\end{equation}
+the multiplicative path factor is
+\begin{equation}
+  \rho(p,\delta)=\prod_{i=1}^{m}
+    \tau\!\left(\ell(q_{i-1}),\ell(q_i)\right),
+\end{equation}
+where $\tau:\mathcal{L}\times\mathcal{L}\rightarrow\mathbb{R}_{\ge0}$ weights consecutive terrain transitions. A separate endpoint factor $\eta(p,\delta)$ may additionally discourage ending inside a barrier. The adjusted matrix is
+\begin{equation}
+  M^r_{x,y,d,t}=\operatorname{normalize}\!\left(
+    \bigl(M_{x,y,d,t}(\delta)\rho(p,\delta)\eta(p,\delta)\bigr)_{
+      \delta\in[-R,R]^2}
+  \right).
+\end{equation}
+
+When the source lies inside a barrier, directional rays estimate the nearest passable cell in each heading bin. If $c_d$ is the shortest finite shore distance for bin $d$, the shore-seeking bias is
+\begin{equation}
+  w_d=
+  \begin{cases}
+    \left(1-\dfrac{c_d}{\sum_{j:c_j<\infty}c_j}\right)^\gamma,
+      & c_d<\infty,\\
+    0, & c_d=\infty,
+  \end{cases}
+  \qquad \gamma>1.
+\end{equation}
+Each directional matrix is scaled by $w_d$ without normalizing the directions separately, because that normalization would remove the intended directional preference.
+
+\subsection{General terrain-transition weights}
+
+The barrier factors are special cases of a matrix $W\in\mathbb{R}_{\ge0}^{|\mathcal{L}|\times|\mathcal{L}|}$ in which $W_{ab}$ weights a consecutive transition from terrain $a$ to terrain $b$. The matrix may be asymmetric and need not be row-stochastic: its entries are multiplicative selection weights, while the final displacement matrix is normalized after all path factors have been applied.
+
+\section{State-specific terrain weights from used and available movement}
+\label{sec:ssf-terrain-weights}
+
+This section incorporates the thesis notes in \code{/home/omar/Desktop/MSc Thesis/output.pdf}. Its logic is analogous to a step-selection comparison: the state kernel describes movement availability, while the observed rasterized steps describe use.
+
+For each behavioral state $s$, let $K_s$ be the normalized movement kernel clipped to its selected physical radius $R_s$. Around every eligible trajectory point $n$, the implementation extracts a terrain neighborhood large enough to cover the corresponding kernel. A neighborhood is retained only when at least two terrain classes occur and the observed next point lies inside its extent.
+
+Let the observed displacement in raster cells be $(d^{\mathrm{obs}}_{x,n},d^{\mathrm{obs}}_{y,n})$. Bresenham's algorithm maps a displacement $(d_x,d_y)$ to an ordered terrain sequence $C_0,\ldots,C_m$. Define
+\begin{equation}
+  N_{n,a,b}(d_x,d_y)
+  =\sum_{i=1}^{m}\mathbb{1}[C_{i-1}=a,\ C_i=b],
+\end{equation}
+so that every consecutive boundary crossing is counted. A path $\text{grass}\rightarrow\text{cropland}\rightarrow\text{water}$ contributes to grass--cropland and cropland--water, but not directly to grass--water.
+
+The used statistic for state $s$ is
+\begin{equation}
+  U_{s,a,b}=\sum_{n:s_n=s}
+    N_{n,a,b}(d^{\mathrm{obs}}_{x,n},d^{\mathrm{obs}}_{y,n}).
+\end{equation}
+The available statistic integrates the same terrain-pair counts over all positive endpoints of the state kernel:
+\begin{equation}
+  A_{s,a,b}=\sum_{n:s_n=s}\ \sum_{k_x,k_y:K_s(k_y,k_x)>0}
+    K_s(k_y,k_x)
+    N_{n,a,b}(k_x-k_{c,x},k_y-k_{c,y}).
+\end{equation}
+Availability is therefore the kernel-weighted expected number of terrain-pair crossings, not the number or area of terrain pixels. Kernel endpoints outside the extracted neighborhood are ignored; the retained mass is not renormalized in the current estimator.
+
+For terrain-source row $a$, let $U_{s,a,\cdot}=\sum_bU_{s,a,b}$ and $A_{s,a,\cdot}=\sum_bA_{s,a,b}$. With Laplace parameter $\lambda$, the smoothed relative frequencies and their selection ratio are
+\begin{equation}
+  p^U_{s,a,b}=\frac{U_{s,a,b}+\lambda}{U_{s,a,\cdot}+\lambda L},
+  \qquad
+  p^A_{s,a,b}=\frac{A_{s,a,b}+\lambda}{A_{s,a,\cdot}+\lambda L},
+  \qquad
+  \widetilde W_{s,a,b}=\frac{p^U_{s,a,b}}{p^A_{s,a,b}}.
+\end{equation}
+The current bounded estimator clips this ratio in log space to $[0.5,1.5]$:
+\begin{equation}
+  \log W_{s,a,b}
+  =\operatorname{clip}\!\left(
+    \log\widetilde W_{s,a,b},\log 0.5,\log 1.5
+  \right).
+\end{equation}
+Rows without used or available mass are set to the neutral value one. The result is a tensor $W\in\mathbb{R}^{S\times L\times L}$ of directional, state-specific terrain-pair weights. For a candidate path with terrain sequence $T_0,\ldots,T_m$, its factor and adjusted state kernel are
+\begin{equation}
+  F_s=\prod_{i=1}^{m}W_{s,T_{i-1},T_i},
+  \qquad
+  P_s(\delta)=\frac{K_s(\delta)F_s(\delta)}
+  {\sum_{\delta'}K_s(\delta')F_s(\delta')}.
+\end{equation}
+
+The current implementation estimates and saves the matrices but does not yet install them automatically in every native terrain mapping. The evaluation must therefore separate estimator validation from end-to-end claims about weighted walks.
+
+\section{Validation checklist}
+
+\begin{itemize}
+  \item Verify kernel normalization, retained mass, physical interval, and support radius.
+  \item Compare fitted and held-out step-length and turning-angle distributions by state.
+  \item Test hard barriers, relaxed crossings, starts inside barriers, no visible shore, boundaries, and no-path cases.
+  \item Report used and available terrain counts before interpreting ratios.
+  \item Evaluate sensitivity to $\lambda$, clipping bounds, raster resolution, self-transition handling, state annotation, and kernel family.
+  \item Use \code{/home/omar/Desktop/MSc Thesis/terrain\_pair\_weights/} and \code{/home/omar/Desktop/MSc Thesis/talk/terrain\_pair\_weights\_state\_1.png} as candidate result artifacts after provenance checks.
+\end{itemize}

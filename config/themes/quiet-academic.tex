@@ -1,0 +1,30 @@
+% Quiet Academic: formal, minimal, and least visually opinionated.
+\definecolor{HabitatGreen}{HTML}{2D5A4D}
+\definecolor{WaterBlue}{HTML}{3F6375}
+\definecolor{EarthSand}{HTML}{D8D2C4}
+\definecolor{HabitatOchre}{HTML}{8D6A36}
+\definecolor{DeepInk}{HTML}{262A2B}
+\definecolor{MistGreen}{HTML}{FAFAF7}
+\definecolor{SoftGray}{HTML}{F4F4F1}
+
+\newcommand{\ThemeChapterFont}{\rmfamily\bfseries\color{DeepInk}\fontsize{28}{32}\selectfont}
+\newcommand{\ThemeSectionFont}{\sffamily\bfseries\color{DeepInk}}
+\newcommand{\ThemeChapterFormat}{%
+  \textcolor{HabitatGreen}{\sffamily\bfseries\thechapter\enskip\textbar\enskip}}
+
+\newcommand{\ThemeCoverBackground}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[MistGreen] (current page.south west) rectangle (current page.north east);
+    \draw[HabitatGreen,line width=1.1pt]
+      ($(current page.north west)+(0.055\paperwidth,-0.08\paperheight)$) --
+      ($(current page.south west)+(0.055\paperwidth,0.08\paperheight)$);
+    \draw[EarthSand,line width=.5pt]
+      ($(current page.south west)+(0.12\paperwidth,0.105\paperheight)$) --
+      ($(current page.south east)+(-0.08\paperwidth,0.105\paperheight)$);
+    \draw[WaterBlue,line width=1.2pt]
+      ($(current page.south west)+(0.15\paperwidth,0.08\paperheight)$)
+      .. controls ($(current page.south west)+(0.37\paperwidth,0.16\paperheight)$)
+      and ($(current page.south west)+(0.63\paperwidth,0.07\paperheight)$) ..
+      ($(current page.south west)+(0.87\paperwidth,0.13\paperheight)$);
+  \end{tikzpicture}%
+}

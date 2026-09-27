@@ -1,0 +1,41 @@
+\chapter{Reproducibility Record}
+\label{app:reproducibility}
+
+\section{Software revisions}
+
+\begin{itemize}
+  \item Record immutable revisions for \code{cma\_landcover}, \code{environmentcma}, \code{hmmcma}, \code{segmentationcma}, \code{kernelcma}, \code{RW-Python-gitlab}, the nested native random-walk library, and every MoveApp wrapper.
+  \item Record the thesis-source revision and identify any uncommitted modifications used for final outputs.
+  \item Record package versions, compiler flags, CUDA architecture, Python/R environments, and system libraries.
+\end{itemize}
+
+\section{Data and environmental provenance}
+
+\begin{itemize}
+  \item For each study: stable identifier, licence, access restrictions, download date, checksum, original CRS/time zone, and transformations.
+  \item For each environmental layer: provider, collection/item identifier, reference year, native resolution, access date, clipping extent, reprojection, resampling, and no-data handling.
+  \item Do not archive sensitive animal locations in a public supplement.
+\end{itemize}
+
+\section{Experiment manifest}
+
+\begin{itemize}
+  \item Link every final table and figure to an exact command, configuration, revision, input checksum, seed, and raw result artifact.
+  \item Candidate source roots:
+  \begin{itemize}
+    \item \code{/home/omar/PycharmProjects/RW-Python-gitlab/benchmark/};
+    \item \code{/home/omar/PycharmProjects/RW-Python-gitlab/experiments/};
+    \item \code{/home/omar/Desktop/MSc Thesis/Experiments/};
+    \item \code{/home/omar/Desktop/MSc Thesis/terrain\_pair\_weights/};
+    \item \code{/home/omar/Desktop/MSc Thesis/rw-benchmarks/}.
+  \end{itemize}
+  \item Move selected final artifacts into a versioned thesis-results directory instead of relying on mutable desktop paths.
+\end{itemize}
+
+\section{Randomness and numerical reproducibility}
+
+\begin{itemize}
+  \item Record seeds for splitting, HMM/mixture initialization, walk sampling, bootstrap intervals, and any randomized benchmark order.
+  \item State which parallel routines are deterministic and which are only numerically equivalent within tolerance.
+  \item Record absolute/relative tolerances and probability-normalization checks used by regression tests.
+\end{itemize}

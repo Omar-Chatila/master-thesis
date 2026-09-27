@@ -1,0 +1,81 @@
+\chapter{Results}
+\label{chap:results}
+
+\begin{itemize}
+  \item \textbf{Status:} structured result inventory; replace exploratory observations with values from one frozen, reproducible experiment manifest.
+  \item \textbf{Reporting rule:} present observations and uncertainty here; reserve causal explanation and broader interpretation for \cref{chap:discussion}.
+\end{itemize}
+
+\section{Data and environmental annotation}
+
+\begin{itemize}
+  \item Report records before/after validation, animals, observation intervals, gaps, study extents, projection choices, and annotation coverage.
+  \item Report LOCAL WorldCover retrieval failures and LONG\_RANGE land/water limitations separately.
+  \item Candidate evidence: MoveApps screenshots, trajectory/raster overlays, retained GeoTIFFs, and per-study run summaries.
+  \item Final figure: one complete transformation from geographic input through projected terrain grid and annotated trajectory.
+\end{itemize}
+
+\section{Segmentation and states}
+
+\begin{itemize}
+  \item Report segment/state counts, duration distributions, feature summaries, transition counts, unclassified points, and insufficient-state cases.
+  \item Compare criteria, HMM, BCPA, and hybrid outputs on common trajectories.
+  \item Candidate evidence: \code{segmentation\_comp.png}, \code{bcpa\_segmentation.png}, state plots in \code{RW-Python-gitlab/tests/}, and buffalo HMM artifacts.
+  \item Avoid assigning behavioral names from state index alone.
+\end{itemize}
+
+\section{Movement kernels}
+
+\begin{itemize}
+  \item Report fitted/failed states, valid steps, native interval, chosen physical support, retained mass, and density configuration.
+  \item Existing Bettong summaries already expose a key realistic failure mode: some rare states contain too few steps to generate a kernel.
+  \item Candidate figures: matched Brownian/correlated kernels by state and sensitivity grids from \code{generated\_kernels/} and \code{kernel\_postprocess\_experiments/}.
+  \item Do not select a final density estimator from visual smoothness alone; connect selection to held-out performance and stability.
+\end{itemize}
+
+\section{Terrain-transition weights}
+
+\begin{itemize}
+  \item Report used and available terrain-pair matrices before the final clipped ratios.
+  \item Report states and terrain rows with zero evidence and therefore neutral weights.
+  \item Candidate artifacts: \code{/home/omar/Desktop/MSc Thesis/terrain\_pair\_weights/*.csv} and the corresponding per-state heat maps.
+  \item Separate successful estimation from successful installation in the native transition mapping.
+  \item Required final result: held-out or sensitivity evidence showing whether the learned weights improve ecological plausibility or predictive score.
+\end{itemize}
+
+\section{Interpolation and spatial summaries}
+
+\begin{itemize}
+  \item Report hidden-point scores and coverage by study, animal, gap duration, segmentation method, kernel family, and environment setting.
+  \item Report no-path frequency and any automatic $T$ adaptation.
+  \item Report UD comparison metrics on aligned grids and distinguish original-reference from sampled-reference BRB outputs.
+  \item Current summary files show that performance and zero-density behavior differ materially across studies; retain study-level results rather than claiming one universally best model.
+  \item Candidate outputs:
+  \begin{itemize}
+    \item \code{/home/omar/Desktop/MSc Thesis/UD/};
+    \item \code{/home/omar/Desktop/MSc Thesis/mixed-walks/};
+    \item \code{/home/omar/Desktop/MSc Thesis/talk/rwvsud.png};
+    \item \code{RW-Python-gitlab/benchmark/results/} and interactive buffalo maps.
+  \end{itemize}
+\end{itemize}
+
+\section{End-to-end workflow and computation}
+
+\begin{itemize}
+  \item Report which component combinations completed for each study and where contract or resource failures occurred.
+  \item Report wall-clock and peak-memory contributions of preprocessing, fitting, dynamic programming, sampling, spatial aggregation, and export.
+  \item Compare serial/OpenMP/CUDA only after numerical-equivalence checks pass.
+  \item Candidate benchmark figures: \code{/home/omar/Desktop/MSc Thesis/rw-benchmarks/}.
+  \item Candidate workflow evidence: MoveApps run screenshots and generated Leaflet HTML artifacts.
+\end{itemize}
+
+\section{Answers to the research questions}
+
+\begin{itemize}
+  \item \textbf{RQ1:} insert quantitative evidence for successful data/environment harmonization and its remaining failure modes.
+  \item \textbf{RQ2:} insert comparative evidence for segmentation stability and downstream usefulness.
+  \item \textbf{RQ3:} insert kernel and terrain-weight estimation results, including insufficient-data cases.
+  \item \textbf{RQ4:} insert end-to-end path and artifact evidence across MoveApps components.
+  \item \textbf{RQ5:} insert hidden-point, UD, and ecological-plausibility comparisons.
+  \item \textbf{RQ6:} insert runtime, memory, and numerical-equivalence results.
+\end{itemize}

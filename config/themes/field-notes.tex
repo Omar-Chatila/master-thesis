@@ -1,0 +1,37 @@
+% Field Notes: warm, bookish, and visibly rooted in ecological field work.
+\definecolor{HabitatGreen}{HTML}{4D6338}
+\definecolor{WaterBlue}{HTML}{487B78}
+\definecolor{EarthSand}{HTML}{CDBA91}
+\definecolor{HabitatOchre}{HTML}{A66332}
+\definecolor{DeepInk}{HTML}{302E29}
+\definecolor{MistGreen}{HTML}{F2F0E6}
+\definecolor{SoftGray}{HTML}{F7F4EA}
+
+\newcommand{\ThemeChapterFont}{\rmfamily\bfseries\color{DeepInk}\fontsize{28}{32}\selectfont}
+\newcommand{\ThemeSectionFont}{\sffamily\bfseries\color{HabitatGreen}}
+\newcommand{\ThemeChapterFormat}{%
+  \colorbox{HabitatGreen}{\textcolor{white}{\sffamily\bfseries\strut\thechapter}}\hspace{0.8em}}
+
+\newcommand{\ThemeCoverBackground}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[MistGreen] (current page.south west) rectangle (current page.north east);
+    \fill[HabitatGreen] (current page.south west) rectangle
+      ($(current page.north west)+(0.052\paperwidth,0)$);
+    \fill[EarthSand!45] ($(current page.south west)+(0,0.02\paperheight)$) rectangle
+      ($(current page.south east)+(0,0.055\paperheight)$);
+    \foreach \s in {0,1,2,3,4}{
+      \draw[HabitatGreen,opacity=.16,line width=.8pt]
+        ($(current page.south east)+(-0.02\paperwidth,0.10\paperheight+\s*0.018\paperheight)$)
+        .. controls ($(current page.south east)+(-0.22\paperwidth,0.28\paperheight+\s*0.012\paperheight)$)
+        and ($(current page.south east)+(-0.42\paperwidth,0.02\paperheight+\s*0.016\paperheight)$) ..
+        ($(current page.south west)+(0.40\paperwidth,0.13\paperheight+\s*0.012\paperheight)$);
+    }
+    \draw[WaterBlue,line width=1.5pt]
+      ($(current page.south west)+(0.16\paperwidth,0.12\paperheight)$)
+      .. controls ($(current page.south west)+(0.39\paperwidth,0.25\paperheight)$)
+      and ($(current page.south west)+(0.67\paperwidth,0.06\paperheight)$) ..
+      ($(current page.south west)+(0.88\paperwidth,0.18\paperheight)$);
+    \fill[HabitatOchre] ($(current page.south west)+(0.16\paperwidth,0.12\paperheight)$) circle (2.4pt);
+    \fill[HabitatOchre] ($(current page.south west)+(0.88\paperwidth,0.18\paperheight)$) circle (2.4pt);
+  \end{tikzpicture}%
+}

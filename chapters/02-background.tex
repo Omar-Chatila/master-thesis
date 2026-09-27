@@ -1,0 +1,77 @@
+\chapter{Background and Related Work}
+\label{chap:background}
+
+\section{Animal movement data and the missing path}
+
+\begin{itemize}
+  \item Animal-borne sensors record discrete, noisy observations of a continuous movement process.
+  \item Missing or sparse fixes arise through sampling design, battery limits, transmission loss, environmental obstruction, device orientation, or failed positioning.
+  \item Straight-line interpolation supplies one geometric connection but suppresses uncertainty and may cross impossible terrain.
+  \item A useful workflow must distinguish:
+  \begin{itemize}
+    \item observation error from uncertainty about the unobserved path;
+    \item short irregularities from genuinely unsupported long gaps;
+    \item finite-interval space use from long-term home range;
+    \item plausible model realizations from claims about the animal's actual route.
+  \end{itemize}
+  \item Use movement-ecology literature to connect the movement process, internal state, navigation capacity, and external environment \parencite{nathan2008movement}.
+\end{itemize}
+
+\section{Environmental annotation and habitat selection}
+\label{sec:environmental-annotation-and-habitat-selection}
+
+\begin{itemize}
+  \item Environmental covariates can describe the terrain at observed fixes, candidate endpoints, rasterized steps, or every intermediate model state.
+  \item These choices answer different questions and must not be collapsed into one generic notion of ``environment-aware movement''.
+  \item Step-selection functions compare used steps with available alternatives and provide the conceptual bridge for estimating relative terrain preference \parencite{thurfjell2014stepselection,avgar2016issa}.
+  \item Integrated and state-dependent step-selection approaches motivate separating baseline movement availability from habitat-dependent weighting \parencite{pohle2024states}.
+  \item The thesis adapts that used-versus-available logic to terrain-pair crossings inside local movement kernels; the concrete estimator is developed in \cref{sec:ssf-terrain-weights}.
+\end{itemize}
+
+\section{Segmentation and behavioral structure}
+\label{sec:segmentation-and-behavioral-structure}
+
+\begin{itemize}
+  \item Segmentation partitions a trajectory into internally coherent phases; behavioral annotation assigns a label or latent state; gap splitting prevents unsupported steps from contaminating both.
+  \item Criteria-based segmentation expresses domain knowledge through temporal and geometric predicates and stable criteria \parencite{alewijnse2014segmentation}.
+  \item Gurarie et al. compare exploratory methods including BCPA, Bayesian partitioning, first-passage-time analysis, and multi-state movement models \parencite{gurarie2016behaviour}.
+  \item Key implication from Gurarie et al. for this thesis:
+  \begin{itemize}
+    \item methods encode different assumptions and can identify different kinds or scales of behavioral change;
+    \item autocorrelation can create spurious change points when ignored;
+    \item the number and interpretation of behaviors depend on the scientific question;
+    \item no single automatic annotation should be treated as biological ground truth.
+  \end{itemize}
+  \item HMM state numbers are statistical labels; ecological names such as resting, foraging, or traveling require post-fit interpretation from feature distributions and context \parencite{zucchini2016hmm}.
+\end{itemize}
+
+\section{From Brownian bridges to conditioned discrete walks}
+
+\begin{itemize}
+  \item Brownian and dynamic Brownian bridge models provide important reference approaches for uncertainty between observed endpoints \parencite{horne2007bbmm,kranstauber2012dbbmm}.
+  \item Their strengths include a clear stochastic interpretation, established usage, and direct bridge-based utilization distributions.
+  \item The discretized conditioned-random-walk framework supports a broader family of transition rules:
+  \begin{itemize}
+    \item Brownian, biased, correlated, mixed, state-dependent, and terrain-dependent motion;
+    \item exact endpoint conditioning on a finite grid;
+    \item dynamic-programming computation of densities followed by backward sampling;
+    \item utilization distributions and visit probabilities under the same model.
+  \end{itemize}
+  \item The 2024 paper supplies the original framework \parencite{buchin2024randomwalks}; Hagedoorn's thesis supplies the broader algorithmic and case-study context \parencite{hagedoornPhD}; the 2026 manuscript supplies environment-aware extensions \parencite{buchin2026advanced}.
+  \item This thesis uses that theory as one component inside a larger application workflow and does not assume the reader has studied those sources.
+\end{itemize}
+
+\section{MoveApps and the research gap}
+
+\begin{itemize}
+  \item MoveApps makes movement-analysis components composable and accessible, but composition creates strict interface requirements.
+  \item A complete workflow must carry coordinate systems, units, timestamps, animal identifiers, states, raster provenance, kernel intervals, and warnings across app boundaries.
+  \item Existing theory or individual packages do not by themselves demonstrate that all stages remain compatible on realistic data.
+  \item The gap addressed here is therefore practical and scientific:
+  \begin{itemize}
+    \item connect raw observations and environmental products to the theoretical model;
+    \item expose defensible settings instead of implementation-only parameters;
+    \item return interpretable artifacts and diagnostics;
+    \item evaluate failures and interactions across the complete chain.
+  \end{itemize}
+\end{itemize}

@@ -1,0 +1,52 @@
+\documentclass[
+  paper=a4,
+  fontsize=11pt,
+  twoside=true,
+  open=right,
+  headings=big,
+  numbers=noenddot,
+  bibliography=totoc,
+  listof=totoc,
+  parskip=half-
+]{scrbook}
+
+\input{config/thesis-meta}
+\usepackage{config/thesis-style}
+\addbibresource{references.bib}
+
+\begin{document}
+
+\frontmatter
+\makethesistitle
+\input{frontmatter/declaration}
+\input{frontmatter/publications}
+\input{frontmatter/abstract}
+\input{frontmatter/acknowledgements}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\printacronyms
+
+\mainmatter
+\input{chapters/01-introduction}
+\input{chapters/02-background}
+\input{chapters/03-data-environment}
+\input{chapters/04-segmentation-behaviour}
+\input{chapters/05-kernel-construction}
+\input{chapters/06-random-walk-interpolation}
+\input{chapters/07-spatial-summaries}
+\input{chapters/08-software-pipeline}
+\input{chapters/09-evaluation}
+\input{chapters/10-results}
+\input{chapters/11-discussion}
+\input{chapters/12-conclusion}
+
+\appendix
+\input{appendices/reproducibility}
+\input{appendices/supplementary}
+
+\backmatter
+\printbibliography[title={References}]
+
+\end{document}

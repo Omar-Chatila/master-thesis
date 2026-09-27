@@ -1,0 +1,76 @@
+% Image Watermark: a centered, classical title page with replaceable PNG art.
+% The body deliberately differs from the crossover themes: centered chapter
+% openers, serif headings, no running header, and folios in the outer footer.
+\definecolor{HabitatGreen}{HTML}{244F4A}
+\definecolor{WaterBlue}{HTML}{466C7A}
+\definecolor{EarthSand}{HTML}{D8D0C2}
+\definecolor{HabitatOchre}{HTML}{8A6035}
+\definecolor{DeepInk}{HTML}{1F2527}
+\definecolor{MistGreen}{HTML}{F8F7F3}
+\definecolor{SoftGray}{HTML}{F1F0EB}
+
+\newcommand{\ThemeChapterFont}{\rmfamily\normalfont\color{DeepInk}\fontsize{27}{33}\selectfont}
+\newcommand{\ThemeSectionFont}{\rmfamily\bfseries\color{DeepInk}}
+\newcommand{\ThemeChapterFormat}{%
+  \normalfont\sffamily\small\bfseries\color{WaterBlue}
+  \MakeUppercase{\chapappifchapterprefix{\nobreakspace}}\thechapter\autodot}
+
+\newcommand{\ThemeCoverBackground}{}
+
+\newcommand{\ThemeSetup}{%
+  \renewcommand*{\raggedchapter}{\centering}
+  \renewcommand*{\chapterlinesformat}[3]{%
+    \Ifstr{##1}{chapter}{%
+      \parbox{\linewidth}{\centering {##2}\par\vspace{0.45\baselineskip}%
+        \textcolor{EarthSand}{\rule{4.2cm}{0.7pt}}\par\vspace{0.5\baselineskip}##3\par}%
+    }{##2##3}}
+  \clearpairofpagestyles
+  \automark[section]{chapter}
+  \lefoot{\small\sffamily\color{WaterBlue}\pagemark}
+  \rofoot{\small\sffamily\color{WaterBlue}\pagemark}
+  \renewcommand*{\chapterpagestyle}{plain.scrheadings}
+  \setkomafont{pageheadfoot}{\sffamily\color{WaterBlue}}
+  \setkomafont{subsection}{\rmfamily\bfseries\color{DeepInk}}
+}
+
+\newcommand{\ThemeTitlePage}{%
+  \begin{titlepage}
+    \thispagestyle{empty}
+    \begin{tikzpicture}[remember picture,overlay]
+      \fill[MistGreen] (current page.south west) rectangle (current page.north east);
+      \IfFileExists{\ThesisTitleImage}{%
+        \node[inner sep=0pt,opacity=\ThesisTitleImageOpacity]
+          at ($(current page.center)+(0,-0.035\paperheight)$)
+          {\includegraphics[width=0.88\paperwidth,height=0.58\paperheight,keepaspectratio]{\ThesisTitleImage}};
+      }{}
+    \end{tikzpicture}
+    \centering\color{DeepInk}\rmfamily
+    \vspace*{0.25cm}
+    {\fontsize{28}{33}\selectfont\bfseries\ThesisTitle\par}
+    \vspace{0.55cm}
+    {\large\itshape\color{WaterBlue}\ThesisSubtitle\par}
+    \vspace{2.25cm}
+    {\small by\par}
+    \vspace{0.35cm}
+    {\LARGE\ThesisAuthor\par}
+    {\small\color{DeepInk!70}\ThesisAuthorEmail\par}
+    \vfill
+    \begin{minipage}{0.76\textwidth}
+      \centering\large
+      Submitted in partial fulfilment of the requirements for the degree of\\[0.25em]
+      {\bfseries\ThesisDegree\ in \ThesisProgramme}
+    \end{minipage}
+    \vspace{1.1cm}
+    \begin{tabular}{@{}r@{\hspace{0.8em}}l@{}}
+      First examiner: & \ThesisFirstExaminer\\
+      Second examiner: & \ThesisSecondExaminer\\
+      Supervisor: & \ThesisSupervisor
+    \end{tabular}
+    \vfill
+    {\large\ThesisDepartment\par}
+    {\ThesisChair\par}
+    {\bfseries\ThesisUniversity\par}
+    {\ThesisLocation, \ThesisSubmissionDate\par}
+    \vspace*{0.35cm}
+  \end{titlepage}
+}

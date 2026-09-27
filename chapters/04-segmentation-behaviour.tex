@@ -1,0 +1,70 @@
+\chapter{Trajectory Segmentation and Behavioral Annotation}
+\label{chap:segmentation}
+
+\section{Distinct preprocessing decisions}
+
+\begin{itemize}
+  \item \textbf{Gap splitting:} prevent long or irregular observation intervals from entering feature and kernel estimation as ordinary steps.
+  \item \textbf{Segmentation:} locate intervals with comparatively coherent movement properties.
+  \item \textbf{Behavioral annotation:} assign a rule-based label or latent state to points or segments.
+  \item \textbf{Downstream purpose:} provide internally consistent groups of displacement observations for state-specific kernels.
+  \item Treating these operations as one step risks fitting sampling artifacts rather than movement behavior.
+\end{itemize}
+
+\section{Features}
+
+\begin{itemize}
+  \item Candidate features implemented in \code{hmmcma}: speed, distance, turning angle, absolute direction, angular difference, persistence velocity, and terrain.
+  \item Compute features only after ordering observations and projecting distances into metres.
+  \item Mark the first point after every gap as lacking a valid incoming step where appropriate.
+  \item Handle angle wrapping explicitly and avoid imputing undefined turn angles as ordinary zero values.
+  \item Standardization parameters must be fitted on the intended training subset to prevent leakage into held-out interpolation experiments.
+\end{itemize}
+
+\section{Criteria-based segmentation}
+
+\begin{itemize}
+  \item Use the stable-criteria framework of \textcite{alewijnse2014segmentation} as the principal reference for rule-based segmentation.
+  \item Implemented predicates include:
+  \begin{itemize}
+    \item containment in a disk with a radius in metres;
+    \item minimum or maximum hop counts;
+    \item minimum duration;
+    \item speed, turning-angle, and heading ranges;
+    \item outlier-tolerant variants and Boolean combinations.
+  \end{itemize}
+  \item Named rules such as resting, traveling, and foraging produce both \code{segment\_name} and a numeric \code{state} compatible with downstream components.
+  \item Unclassified or invalid points retain an explicit sentinel state rather than being silently reassigned.
+  \item Final thesis description should map every exposed MoveApps rule to its ecological interpretation, unit, and failure case.
+\end{itemize}
+
+\section{Data-driven alternatives}
+
+\begin{itemize}
+  \item \textbf{HMM:} infer a latent state sequence from selected movement features and temporal state persistence.
+  \item \textbf{BCPA:} identify change points in movement characteristics and cluster the resulting phases.
+  \item \textbf{BCPA--HMM hybrid:} use BCPA boundaries but assign one HMM state to each segment through posterior-probability sums or majority vote.
+  \item Common output contract: \code{state}, \code{cluster}, \code{segment\_id}, \code{change\_point}, selected feature columns, metrics, and mapping metadata.
+  \item Diagnostics: state counts, segment lengths, transition counts, change-point counts, feature summaries, coverage, convergence, and sensitivity to initialization.
+\end{itemize}
+
+\section{Interpretation and method comparison}
+
+\begin{itemize}
+  \item Follow the methodological warning of \textcite{gurarie2016behaviour}: different tools expose different structures because they ask different questions and encode different assumptions.
+  \item Do not interpret numerical HMM state order as an ecological label.
+  \item Compare methods by:
+  \begin{itemize}
+    \item stability under resampling and parameter changes;
+    \item separation of speed, persistence, and turning features;
+    \item segment duration and fragmentation;
+    \item sufficient step counts for fitting downstream kernels;
+    \item held-out performance of the complete workflow.
+  \end{itemize}
+  \item Candidate evidence:
+  \begin{itemize}
+    \item \code{/home/omar/Desktop/MSc Thesis/segmentation/segmentation\_comp.png};
+    \item \code{/home/omar/Desktop/bcpa\_segmentation.png};
+    \item generated HMM, BCPA, hybrid, and criteria artifacts under \code{RW-Python-gitlab/tests/}.
+  \end{itemize}
+\end{itemize}

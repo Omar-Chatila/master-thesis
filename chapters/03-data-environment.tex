@@ -1,0 +1,169 @@
+\chapter{Movement Data and Environmental Annotation}
+\label{ch:data-environment}
+
+The first module of our pipeline deals with the transformation and augmentation of our trajectories for the sake of locally accurate analysis:
+Raw input trajectories usually use geodetic coordinates (lon/lat), which are not suitable for segmentation, kernel calculations, and random walk interpolations on a regular grid,
+as these require metric coordinates.
+For example, the shape and size of the area induced by 1° in longitude and latitude differs depending on the location on the globe.
+Broadly speaking, there are three goals addressed by the several existing map projections, namely angle-, area- and length-preservation, which on a global scale stand in conflict with each other.
+We aim to find a suitable projection of a trajectory's geodetic coordinates (EPSG:4326) to a regular grid for our dynamic program, and back to geodetic coordinates for visualization, that minimizes the 
+errors induced by grid-discretization and distortion, caused by the earth's curvature.
+Finally, the trajectories are augmented with terrain information, which can be used for the ensuing steps of our workflow, like segmentation and kernel calculations.
+
+\section{Projection into a metric space}
+For random-walk interpolation on a regular grid, a suitable projection should approximately satisfy the following conditions:
+\begin{itemize}
+  \item \textbf{Low distance distortion}: Equal grid increments should correspond to approximately equal distances on the Earth's surface. 
+  Thus, grid cells should have a nearly constant ground size throughout the relevant area.
+  \item \textbf{Conformality}: Local angles and changes in direction should be preserved, such that the shapes and directional properties of movement kernels are not distorted.
+\end{itemize}
+
+These requirements do not need to hold globally. In our pipeline, every animal is processed separately and its complete trajectory is reprojected independently. 
+It is therefore sufficient that the projection introduces only small distortions over the area covered by the respective animal. 
+The center and spatial extent of its trajectory can be used to select or define an appropriate local projection.
+
+The resulting metric coordinates are used for segmentation, kernel generation, and grid-based random-walk interpolation. 
+These steps are discussed in detail in Chapters~\ref{ch:segmentation}, \ref{ch:kernels}, and~\ref{ch:random-walks}, respectively. 
+Geographic coordinates in EPSG:4326 are retained as the common input and output representation and are used for the final visualization of the results.
+
+A natural initial choice for this per-animal projection is the Universal Transverse Mercator (UTM) system.
+
+\subsection{Universal Transverse Mercator (UTM)}
+The UTM coordinate system divides the Earth's surface between \(80^\circ\) South and \(84^\circ\) North into 60 longitudinal zones, each spanning \(6^\circ\) of longitude. 
+The zones are numbered from 1 to 60 from west to east, starting at the \(180^\circ\) meridian. 
+Each zone uses a separate transverse Mercator projection whose central meridian lies in the middle of the zone.
+For identification, the UTM area is additionally divided into latitude bands. These are labelled from C to X from south to north, omitting the letters I and O. 
+Most bands span \(8^\circ\) 
+of latitude, while the northernmost band X spans \(12^\circ\). A zone number and latitude-band letter can be combined into a grid zone designation, such as 29U. 
+The same zone numbers from 1 to 60 are repeated in every latitude band.
+
+\paragraph{Properties: } UTM is based on the Transverse Mercator projection. Its projection cylinder is oriented along a selected zone's central meridian. 
+For a zone with number $z$, its central meridian is 
+\[\lambda_0 = 6z - 183^\circ\].
+Each of the 60 zones defines an independent projected coordinate reference system (CRS). Therefore, coordinates from different UTM zones must not be combined directly. 
+However, points outside a UTM zone can still be projected onto that zone's CRS, albeit with poorer projection properties. 
+UTM is conformal, meaning that infinitesimally small shapes are preserved up to a scaling factor dependent on position. This is useful for movement directions, turning angles and kernel shapes.
+UTM uses metric coordinates, represented by eastings (E) and northings (N), which allow us to calculate a good approximation for the Euclidean distance directly. 
+It uses a central scaling factor of $k_0$ = 0.9996, which causes distances along the central meridian to be slightly contracted. 
+This scale factor increases with east-west distance from the central meridian and can be described approximately by the equation:
+\[
+k \approx k_0 \left( 1 + \frac{1}{2}(\Delta \lambda \cos \phi)^2\right),
+\]  
+where $\Delta \lambda = \lambda - \lambda_0$ is calculated in radians. Consequently, UTM is neither distance- nor area-preserving, as distances are scaled by a factor of $k$ and areas by 
+a factor of $k^2$, wherein $k$ increases quadratically with distance from the central meridian. 
+However, these variations are usually small enough in practice, especially for the spatial extents and grid resolutions considered in this work.
+
+A UTM CRS is specified by its zone number and hemisphere. The latitude-band letter is useful for identifying a geographic region, but is not part of the projected CRS itself. 
+To avoid negative coordinate values, UTM uses a false easting of \(500\,000\,\mathrm{m}\). 
+On the southern hemisphere, a false northing of \(10\,000\,000\,\mathrm{m}\) is additionally applied. 
+Consequently, an easting and northing pair is only unambiguous when the corresponding zone and hemisphere are known.
+For an example location in EPSG:4326 of 
+\[
+p = (\lambda, \phi) = (7.1508^\circ\mathrm{E},51.2562^\circ\mathrm{N})
+\]
+the corresponding zone is calculated by \[
+z
+=
+\left\lfloor
+\frac{\lambda+180^\circ}{6^\circ}
+\right\rfloor+1.
+\]
+The latitude of $p$ indicates that the point lies in the northern hemisphere ($\text{lat} \geq 0^\circ$). 
+In these cases, the EPSG code equals $32600 + z$, otherwise ($\text{lat} < 0$) $32700 + z$.
+Finally, $p$ is projected using EPSG:32632 to \[
+(E,N)
+=
+(367\,366\,\mathrm{m},5\,677\,885\,\mathrm{m})
+\]
+, using established python libraries like PROJ.
+
+\subsection{local conforming projection (working title)}
+In our pipeline, the complete trajectory of an animal is transformed into one common UTM CRS. 
+This also applies when individual points lie outside the nominal boundaries of the selected zone.
+
+
+- aeqd und utm vorstellen, diskutieren. utm edge cases
+- dann überleiten zu eigene lokale transversale Mercator-Projektion
+- dann den algo von bounding box, center, utm etc darlegen
+- später dann in random walks mit kompakten segmenten arbeiten
+
+\begin{itemize}
+  \item Required fields: animal identifier, ordered timestamps, valid point geometries, and a declared source ac{crs}.
+  \item Optional fields: positional uncertainty, taxon, existing state labels, study-specific attributes, and environmental measurements.
+  \item Internal representation: a \code{movingpandas.TrajectoryCollection} with original columns preserved.
+  \item Per-animal processing prevents one animal's projection, extent, or raster resolution from silently determining another's.
+  \item Study systems and final sample sizes: populate from the frozen data manifest and saved experiments under \code{/home/omar/Desktop/MSc Thesis/Experiments/}.
+\end{itemize}
+
+\section{Inputs and data contract}
+\label{sec:inputs-and-data-contract}
+In the context of MoveApps' workflows, the data source module \("\)Movebank Location\("\) already provides trajectories in a suitable format.
+Generally, a collection of trajectories must contain unique animal identifiers, ordered timestamps, and valid point geometries (along with a declared CRS, which defaults to EPSG:4326).
+
+\section{Quality control}
+
+\begin{itemize}
+  \item Sort observations by animal and timestamp.
+  \item Detect duplicated timestamps, invalid geometries, missing identifiers, absent CRS information, and non-positive time differences.
+  \item Report all exclusions and whether a removed fix creates a new apparent gap.
+  \item Separate implausible-speed filtering from segmentation so that data cleaning does not silently become behavioral classification.
+  \item Retain original observations as a distinct output layer for later comparison with reconstructed paths.
+\end{itemize}
+
+
+\begin{itemize}
+  \item Store and exchange locations in their declared source ac{crs}; perform distance-based movement calculations in a metric projection.
+  \item Local mode:
+  \begin{itemize}
+    \item select the WGS~84 UTM zone containing the center of each animal's raster/track extent;
+    \item apply the same UTM CRS to that animal's fixes and raster;
+    \item record \code{utm\_x}, \code{utm\_y}, and \code{utm\_crs} together.
+  \end{itemize}
+  \item Long-range mode:
+  \begin{itemize}
+    \item use only broad land/water context where one local UTM projection or detailed WorldCover annotation would be misleading;
+    \item document remaining distortion and the scale at which the raster is intended to be interpreted.
+  \end{itemize}
+  \item Validation cases: UTM boundaries, high latitudes, antimeridian crossings, small islands, raster edges, and very large animal extents.
+\end{itemize}
+
+\section{Environmental annotation modes}
+
+\begin{itemize}
+  \item \textbf{LOCAL:}
+  \begin{itemize}
+    \item query ESA WorldCover through the Microsoft Planetary Computer STAC service;
+    \item clip the relevant asset to an animal-specific buffered extent;
+    \item reproject before building the metric grid;
+    \item retain the detailed WorldCover classes and their data provenance.
+  \end{itemize}
+  \item \textbf{LONG\_RANGE:}
+  \begin{itemize}
+    \item rasterize packaged Natural Earth 1:10m land polygons;
+    \item annotate the broad classes Land and Water;
+    \item avoid a network dependency and prefer coverage over fine local detail.
+  \end{itemize}
+  \item User-facing outputs from \code{cma\_landcover}/\code{environmentcma}:
+  \begin{itemize}
+    \item numeric \code{terrain} and readable \code{terrain\_name};
+    \item discrete \code{grid\_x} and \code{grid\_y};
+    \item optional metric coordinates and per-animal UTM code;
+    \item optional \code{tiffs.zip} containing the animal-specific GeoTIFF artifacts.
+  \end{itemize}
+  \item Failure policy: stop on invalid inputs or incomplete annotation rather than return silently partial results.
+\end{itemize}
+
+\section{From fix annotation to model context}
+
+\begin{itemize}
+  \item Terrain at observed fixes supports descriptive analysis and behavioral annotation.
+  \item The random-walk model additionally requires terrain for candidate cells and for every rasterized path between a source and candidate endpoint.
+  \item Raster and walk grids must therefore share a CRS, cell alignment, extent convention, class mapping, and no-data policy.
+  \item Environmental product resolution and classification error propagate into barrier decisions and learned terrain weights.
+  \item Evidence and candidate figures:
+  \begin{itemize}
+    \item MoveApps run screenshots in \code{/home/omar/Desktop/MSc Thesis/MoveAppsRuns/};
+    \item per-animal terrain grids and outputs produced by \code{RW-Python-gitlab};
+    \item terrestrial and marine examples showing original track, raster, projected grid, and sampled classes.
+  \end{itemize}
+\end{itemize}

@@ -1,0 +1,78 @@
+\chapter{Spatial Summaries and Visual Communication}
+\label{chap:spatial-summaries}
+
+\section{Conditioned utilization distributions}
+
+\begin{itemize}
+  \item Compute the probability of occupying each grid cell at each intermediate model time, conditional on both observed endpoints.
+  \item Aggregate time layers to obtain a finite-interval occupancy distribution.
+  \item State the estimand explicitly:
+  \begin{itemize}
+    \item conditional on observed fixes and the fitted movement model;
+    \item defined over the analyzed observation intervals;
+    \item distinct from an asymptotic or long-term home-range distribution.
+  \end{itemize}
+  \item Specify whether intervals are weighted equally, by elapsed duration, by transition count, or by confidence.
+  \item Avoid double-counting shared endpoints when combining adjacent intervals.
+\end{itemize}
+
+\section{Visit probabilities}
+
+\begin{itemize}
+  \item Define visit probability as the chance that a conditioned path enters a target region at least once.
+  \item Compute it with an augmented or complementary dynamic program under the same transition and boundary rules as the base model.
+  \item Do not obtain it by summing marginal occupancies because repeated occupancy by one path is not repeated independent visitation.
+  \item Candidate applications: protected areas, road or infrastructure crossings, exposure zones, habitat patches, and land/water transitions.
+\end{itemize}
+
+\section{Exact and sampled summaries}
+
+\begin{itemize}
+  \item Exact grid-based summaries avoid Monte Carlo variance but require additional dynamic-programming passes and memory.
+  \item Sampled-walk summaries support arbitrary path-level questions but require uncertainty assessment as the number of walks changes.
+  \item Cross-check exact and sampled outputs on small and representative real cases.
+  \item Export normalized rasters with correct affine transform, grid alignment, CRS, cell area, and no-data semantics.
+  \item Define isopleths by cumulative probability mass and state whether reported values refer to mass, density, or area.
+\end{itemize}
+
+\section{Interactive and animated Leaflet output}
+
+\begin{itemize}
+  \item Use Leaflet maps as a communication and inspection layer, not as the primary scientific result.
+  \item Provide toggles for original fixes, sampled paths, utilization density, land cover, barriers, coastlines, and selected confidence contours.
+  \item Preserve timestamps so a lightweight animation can show how uncertainty evolves between fixes.
+  \item Keep original observations visually distinct from interpolated locations.
+  \item Reuse the same land geometry for marine/terrestrial constraints and displayed coastlines so the model and visualization do not contradict one another.
+  \item Candidate artifacts:
+  \begin{itemize}
+    \item \code{RW-Python-gitlab/outputs/buffalo\_state\_ud/*.html};
+    \item MoveApps screenshots under \code{/home/omar/Desktop/MSc Thesis/MoveAppsRuns/};
+    \item walk/UD figures under \code{/home/omar/Desktop/MSc Thesis/talk/}, \code{UD/}, and \code{mixed-walks/}.
+  \end{itemize}
+\end{itemize}
+
+\section{Parallel computation}
+
+\begin{itemize}
+  \item Serial computation provides the correctness reference.
+  \item OpenMP alternatives:
+  \begin{itemize}
+    \item atomic scatter updates with low auxiliary memory;
+    \item thread-local accumulation with fewer atomics and greater memory use.
+  \end{itemize}
+  \item CUDA alternative:
+  \begin{itemize}
+    \item packed kernel pools and per-cell kernel indices;
+    \item gather-style updates over predecessor states;
+    \item optional full time series or memory-bounded two-dimensional aggregate.
+  \end{itemize}
+  \item Benchmark setup, transfer, kernel execution, reduction, total time, peak memory, and numerical error separately.
+\end{itemize}
+
+\section{Reference methods}
+
+\begin{itemize}
+  \item Compare against bridge-based utilization distributions from \code{adehabitatHR}, autocorrelated estimates from \code{ctmm}, empirical held-out occupancy, and simple interpolation where the estimands can be aligned \parencite{calabrese2016ctmm}.
+  \item Align CRS, extent, resolution, included fixes, temporal window, normalization, and contour convention before comparing surfaces.
+  \item Treat reference methods as scientifically relevant comparators rather than error-free ground truth.
+\end{itemize}

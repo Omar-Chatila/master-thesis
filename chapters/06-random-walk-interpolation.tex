@@ -1,0 +1,66 @@
+\chapter{Endpoint-Conditioned Movement Reconstruction}
+\label{chap:interpolation}
+
+\section{Intuition before formalism}
+
+\begin{itemize}
+  \item The model reconstructs uncertainty between two observed fixes rather than guessing one definitive missing route.
+  \item Space is divided into grid cells and elapsed time into a finite number of movement transitions.
+  \item A transition kernel specifies how the animal could move locally at each step.
+  \item Conditioning retains only paths that start and end at the observed cells at the required times.
+  \item Dynamic programming makes this conditioning feasible without enumerating every complete path \parencite{buchin2024randomwalks,hagedoornPhD}.
+\end{itemize}
+
+\section{Forward computation}
+
+\begin{itemize}
+  \item Initialize all probability mass at the observed start cell.
+  \item At every model step, distribute mass according to the active Brownian, correlated, state-dependent, and terrain-adjusted transition matrix.
+  \item Retain incoming heading as part of the state when correlated motion is used.
+  \item Interpret mass at the observed endpoint after $T$ transitions as the probability of reaching that endpoint under the unconditioned local model.
+  \item Treat zero endpoint mass as an unreachable configuration, not a numerical value that can safely be normalized.
+\end{itemize}
+
+\section{Backward sampling}
+
+\begin{itemize}
+  \item Begin at the observed endpoint.
+  \item Select each predecessor with probability proportional to its forward mass and its probability of transitioning to the current state.
+  \item Continue until the known start point is reached.
+  \item Repetition yields representative samples from the discretized endpoint-conditioned model.
+  \item Sampled walks represent uncertainty; they are not replicated observations or claims about the exact route.
+\end{itemize}
+
+\section{Connecting physical and discrete scales}
+
+\begin{itemize}
+  \item Derive the initial transition count from observed elapsed time and the native physical interval stored with the fitted kernel.
+  \item Map the complete physical kernel support onto the realized grid instead of clipping it to a fixed number of cells.
+  \item Current adaptive policy:
+  \begin{itemize}
+    \item $S=\lceil R/c\rceil$ for physical kernel radius $R$ and cell size $c$;
+    \item use the elapsed-time transition count when the endpoint is reachable;
+    \item increase $T$ only to the minimum required for geometric reachability when needed;
+    \item record every adjustment because it changes the time interpretation.
+  \end{itemize}
+  \item Keep correlated kernels at their inferred native interval; allow explicit time transformation only for Brownian models.
+\end{itemize}
+
+\section{Failures and numerical safeguards}
+
+\begin{itemize}
+  \item Check finite-window boundaries, hard barriers, invalid start/end cells, absent state kernels, and inconsistent terrain mappings before computation.
+  \item Use layer normalization, stored scale factors, or equivalent safeguards against probability underflow on long intervals.
+  \item Require consistent semantics between forward densities, backward sampling, utilization distributions, and visit calculations.
+  \item Return actionable diagnostics for no-path intervals instead of substituting a straight segment without disclosure.
+  \item Verify serial, parallel, and GPU implementations against small exhaustively enumerable cases.
+\end{itemize}
+
+\section{Outputs}
+
+\begin{itemize}
+  \item Interpolated trajectories with timestamps, animal identifiers, walk-version identifiers, and segment boundaries.
+  \item Optional serialized walks containing grid dimensions, terrain, steps, probability summaries, and metadata.
+  \item Diagnostics for model interval, $T$, $S$, reachability, resampling, fallback behavior, and runtime.
+  \item Static plots and interactive map layers that separate original fixes from reconstructed samples.
+\end{itemize}

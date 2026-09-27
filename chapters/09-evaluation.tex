@@ -1,0 +1,86 @@
+\chapter{Evaluation Design}
+\label{chap:evaluation}
+
+\section{Evaluation logic}
+
+\begin{itemize}
+  \item Evaluate whether the complete workflow turns realistic inputs into scientifically interpretable outputs.
+  \item Separate four questions:
+  \begin{itemize}
+    \item scientific plausibility;
+    \item predictive performance on hidden data;
+    \item numerical/software correctness;
+    \item computational feasibility.
+  \end{itemize}
+  \item Declare the evaluation unit for every result: fix, hidden interval, trajectory, animal, study, or computational configuration.
+  \item Freeze training/test splits, configurations, and seeds before selecting final figures.
+\end{itemize}
+
+\section{Study systems and realistic interfaces}
+
+\begin{itemize}
+  \item Select case studies spanning terrestrial, marine, and airborne movement where the saved data permit defensible comparison.
+  \item Include both detailed LOCAL environmental annotation and broad LONG\_RANGE land/water annotation.
+  \item Candidate data/results already present for buffalo, cattle, Eastern Bettongs, boar, bears, oystercatchers, Siberian rubythroats, sharks, elk, feral cats, and whales.
+  \item For each retained study, report taxon, animals, fixes, interval distribution, spatial extent, projection mode, terrain product, missingness, and pipeline role.
+  \item Do not combine exploratory outputs from different code revisions until provenance and parameter equivalence have been checked.
+\end{itemize}
+
+\section{Hidden-point interpolation}
+
+\begin{itemize}
+  \item Treat high-frequency observations as partial ground truth.
+  \item Hide interior points while retaining endpoints for conditioning.
+  \item Evaluate regular thinning, random missing fixes, and contiguous gaps of increasing duration.
+  \item Prevent leakage: hidden points must not fit states, kernels, terrain weights, scaling parameters, or tuning decisions for their evaluated interval.
+  \item Metrics:
+  \begin{itemize}
+    \item log probability or another proper score at hidden locations;
+    \item nominal contour coverage;
+    \item distance to high-probability regions;
+    \item invalid/no-path interval frequency;
+    \item terrain/barrier violations.
+  \end{itemize}
+  \item Reuse and audit \code{RW-Python-gitlab/benchmark/hidden\_point\_validation/} and the mirrored results under \code{/home/omar/Desktop/MSc Thesis/Experiments/Hidden Point Validation/}.
+\end{itemize}
+
+\section{Workflow ablations}
+
+\begin{itemize}
+  \item No environmental context versus hard barriers versus relaxed/learned terrain weights.
+  \item Pooled versus state-specific movement kernels.
+  \item Brownian versus correlated motion.
+  \item Criteria versus HMM versus BCPA versus hybrid behavioral annotation.
+  \item Fixed versus automatic probability-mass kernel support.
+  \item Exact UDs versus sampled-walk estimates.
+  \item Native sampling interval versus each permitted Brownian time transformation.
+\end{itemize}
+
+\section{Spatial-summary validation}
+
+\begin{itemize}
+  \item Compare random-walk UDs with hidden empirical locations and aligned \code{adehabitatHR::BRB}/\code{ctmm::akde} references.
+  \item Metrics: log likelihood, outside-grid percentage, zero-density percentage, integrated absolute error, Bhattacharyya overlap, contour area, and coverage.
+  \item Compare candidates on the same animal and spatial support; aggregate paired differences across animals rather than across all fixes.
+  \item Treat current CSV summaries as exploratory until the final manifest identifies the code revision and configuration.
+\end{itemize}
+
+\section{Terrain-weight evaluation}
+
+\begin{itemize}
+  \item Verify used and available crossing matrices independently on synthetic neighborhoods.
+  \item Test whether learned weights are stable across individuals, states, raster resolutions, smoothing values, and clipping bounds.
+  \item Compare learned directionality $W_{a,b}$ versus $W_{b,a}$ with held-out transitions.
+  \item Evaluate whether installing the weights improves held-out prediction or reduces implausible terrain transitions relative to neutral weights.
+  \item Report rare and zero-count terrain pairs instead of interpreting clipped extremes as strong evidence.
+\end{itemize}
+
+\section{Runtime, memory, and robustness}
+
+\begin{itemize}
+  \item Measure environmental acquisition, projection, segmentation, kernel fitting, terrain preprocessing, forward density, sampling, UD computation, export, and visualization separately.
+  \item Vary animals, fixes, grid size, $T$, kernel support, direction bins, terrain diversity, and requested samples.
+  \item Compare serial CPU, OpenMP atomic, OpenMP thread-local, and CUDA where supported.
+  \item Report hardware, compiler/build flags, warm-up, repetitions, median/IQR, peak memory, transfer time, and numerical discrepancy.
+  \item Stress-test invalid CRS, missing terrain, insufficient state samples, unreachable endpoints, long gaps, raster boundaries, and unavailable remote environmental services.
+\end{itemize}

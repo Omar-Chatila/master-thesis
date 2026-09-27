@@ -1,0 +1,98 @@
+% Tengwar Book: an adaptation of the layout principles of Níckolas de Aguiar
+% Alves's CC BY 4.0 Tengwar Thesis Template. This is an independent theme for
+% the present KOMA-Script project, not a copy of the original class.
+\RequirePackage{ebgaramond}
+\RequirePackage{fmtcount}
+
+\definecolor{HabitatGreen}{HTML}{394A3F}
+\definecolor{WaterBlue}{HTML}{394A59}
+\definecolor{EarthSand}{HTML}{C7AD63}
+\definecolor{HabitatOchre}{HTML}{D6AE34}
+\definecolor{DeepInk}{HTML}{171717}
+\definecolor{MistGreen}{HTML}{FBFAF7}
+\definecolor{SoftGray}{HTML}{F1EFE9}
+\definecolor{TengwarNavy}{HTML}{05033D}
+\definecolor{TengwarGold}{HTML}{F0C326}
+
+\makeatletter
+\newcommand{\TengwarChapterLabel}{%
+  \if@mainmatter\Numberstring{chapter}\else\thechapter\fi}
+\makeatother
+
+\newcommand{\ThemeChapterFont}{\rmfamily\normalfont\color{DeepInk}\fontsize{25}{30}\selectfont}
+\newcommand{\ThemeSectionFont}{\rmfamily\bfseries\color{DeepInk}}
+\newcommand{\ThemeChapterFormat}{%
+  \normalfont\rmfamily\Large\TengwarChapterLabel}
+
+\newcommand{\ThemeCoverBackground}{}
+
+\newcommand{\ThemeSetup}{%
+  \KOMAoptions{headinclude=false,footinclude=false}
+  \areaset[9mm]{145mm}{205mm}
+  \renewcommand*{\raggedchapter}{\centering}
+  \renewcommand*{\chapterlinesformat}[3]{%
+    \Ifstr{##1}{chapter}{%
+      \parbox{\linewidth}{\centering {##2}\par\vspace{0.75\baselineskip}##3\par}%
+    }{##2##3}}
+  \RedeclareSectionCommand[beforeskip=1.0cm,afterskip=1.1cm]{chapter}
+  \clearpairofpagestyles
+  \automark[section]{chapter}
+  \lefoot{\small\rmfamily\pagemark\enspace\headmark}
+  \rofoot{\small\rmfamily\headmark\enspace\pagemark}
+  \renewcommand*{\chapterpagestyle}{plain.scrheadings}
+  \setkomafont{pageheadfoot}{\rmfamily\color{DeepInk}}
+  \setkomafont{subsection}{\rmfamily\itshape\color{DeepInk}}
+  \setkomafont{captionlabel}{\rmfamily\bfseries\color{DeepInk}}
+}
+
+\newcommand{\ThemeTitlePage}{%
+  % Dark outer cover, corresponding to the distinctive first page of Tengwar.
+  \begin{titlepage}
+    \thispagestyle{empty}
+    \pagecolor{TengwarNavy}\color{TengwarGold}\centering\rmfamily
+    \vspace*{1.45cm}
+    {\small\ThesisUniversity\par}
+    {\small\ThesisProgramme\par}
+    \vspace{0.8cm}
+    {\large\ThesisAuthor\par}
+    \vfill
+    {\fontsize{26}{31}\selectfont\ThesisTitle\par}
+    \vspace{0.45cm}
+    {\large\ThesisSubtitle\par}
+    \vfill
+    {\small\MakeUppercase{Draft as of \ThesisSubmissionDate}\par}
+    \vfill
+    {\ThesisLocation\par}
+    {\ThesisSubmissionDate\par}
+    \vspace*{1.1cm}
+  \end{titlepage}
+  \nopagecolor
+  % Sparse inner title page with the administrative information retained.
+  \begin{titlepage}
+    \thispagestyle{empty}\centering\rmfamily\color{DeepInk}
+    \vspace*{0.8cm}
+    {\large\ThesisAuthor\par}
+    {\small\color{DeepInk!65}\ThesisAuthorEmail\par}
+    \vspace{2.3cm}
+    {\fontsize{25}{30}\selectfont\ThesisTitle\par}
+    \vspace{0.35cm}
+    {\large\ThesisSubtitle\par}
+    \vfill
+    \begin{minipage}{0.67\textwidth}
+      \raggedright
+      Thesis presented to the \ThesisProgramme\ programme at
+      \ThesisUniversity\ in partial fulfilment of the requirements for the
+      degree of \ThesisDegree.\par\medskip
+      First examiner: \ThesisFirstExaminer\\
+      Second examiner: \ThesisSecondExaminer\\
+      Supervisor: \ThesisSupervisor
+    \end{minipage}
+    \vfill
+    {\ThesisDepartment\par}
+    {\ThesisChair\par}
+    \vspace{1.0cm}
+    {\ThesisLocation\par}
+    {\ThesisSubmissionDate\par}
+    \vspace*{0.75cm}
+  \end{titlepage}
+}

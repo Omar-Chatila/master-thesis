@@ -1,0 +1,56 @@
+\chapter{Discussion}
+\label{chap:discussion}
+
+\section{What closes the theory--practice gap}
+
+\begin{itemize}
+  \item Interpret the principal result as a complete chain of compatible decisions, not solely as a new transition recurrence.
+  \item Identify which workflow stages changed downstream results most strongly.
+  \item Explain where explicit units, time intervals, projections, state metadata, and raster alignment prevented otherwise plausible but invalid analyses.
+  \item Distinguish algorithm availability from practical usability through MoveApps interfaces, diagnostics, and artifacts.
+\end{itemize}
+
+\section{Scientific interpretation}
+
+\begin{itemize}
+  \item More environmentally plausible paths do not identify the animal's true missing route.
+  \item Improved hidden-point probability indicates better predictive uncertainty under the evaluated model, not proof of a behavioral mechanism.
+  \item State-specific kernels reflect the segmentation method and feature set as well as biological heterogeneity.
+  \item Learned terrain weights are relative selection factors conditional on the kernel-defined availability and observed study design.
+  \item Finite-interval conditioned UDs must not be presented automatically as long-term home range.
+\end{itemize}
+
+\section{Methodological trade-offs}
+
+\begin{itemize}
+  \item Flexible transition kernels can represent persistence, behavior, terrain, and barriers beyond standard Brownian bridges.
+  \item Flexibility adds data requirements, identifiability questions, discretization choices, and computational cost.
+  \item Criteria segmentation offers interpretability but depends on thresholds; HMM/BCPA methods discover structure but remain model- and scale-dependent.
+  \item Detailed WorldCover improves local context but introduces remote-service and reference-year dependencies; binary long-range land/water annotation trades detail for robust coverage.
+  \item Simple baselines remain preferable when data cannot support state-specific or terrain-specific parameters.
+\end{itemize}
+
+\section{Limitations}
+
+\begin{itemize}
+  \item Tracking error and non-random missingness are not fully modeled.
+  \item Environmental layers differ from the animal observations in resolution, accuracy, and reference time.
+  \item One UTM zone is unsuitable for some wide-ranging tracks; the fallback environmental mode is intentionally coarse.
+  \item Rare states and rare terrain crossings yield unstable or neutral estimates.
+  \item Grid, time, support, direction-bin, and boundary choices affect reachability and probability surfaces.
+  \item Terrain-weight estimation currently precedes full automatic installation in every native mapping.
+  \item Current result folders include exploratory runs from different configurations and must be frozen before final inference.
+  \item GPU conclusions depend on hardware, memory layout, transfer costs, and the exact workload.
+\end{itemize}
+
+\section{Future work}
+
+\begin{itemize}
+  \item Integrate terrain-pair estimation and installation into one validated workflow stage.
+  \item Quantify uncertainty in environmental annotation, behavioral states, kernels, and learned terrain weights jointly.
+  \item Support robust long-range projections or adaptive spatial representations.
+  \item Add hierarchical pooling across animals and principled treatment of rare states.
+  \item Extend static environmental context with weather, currents, seasonality, and time-varying availability.
+  \item Improve animated Leaflet explanations of endpoint conditioning and uncertainty without overwhelming users.
+  \item Publish versioned experiment manifests linking every thesis figure and table to code, configuration, and raw outputs.
+\end{itemize}

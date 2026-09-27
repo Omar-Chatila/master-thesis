@@ -1,0 +1,77 @@
+\chapter{End-to-End Software and MoveApps Workflow}
+\label{chap:software}
+
+\section{Workflow as the central contribution}
+
+\begin{itemize}
+  \item The software connects research prototypes and theoretical algorithms to an executable workflow for real movement data.
+  \item Every component can be used independently, replaced by an alternative, or composed into the complete chain.
+  \item The full route through the system is:
+  \begin{itemize}
+    \item validate and annotate observations;
+    \item project trajectory and environment into compatible metric grids;
+    \item split gaps and annotate movement structure;
+    \item fit state-specific movement kernels;
+    \item estimate or specify terrain effects;
+    \item construct endpoint-conditioned paths;
+    \item calculate UDs and visit probabilities;
+    \item export machine-readable artifacts and optional Leaflet visualizations.
+  \end{itemize}
+\end{itemize}
+
+\section{Components and responsibilities}
+
+\begin{itemize}
+  \item \textbf{Environmental Land Cover Annotation} (\code{cma\_landcover}/\code{environmentcma}): LOCAL WorldCover or LONG\_RANGE land/water mode, per-animal projection, terrain fields, grids, and optional GeoTIFF archive.
+  \item \textbf{Behavioral Segmentation} (\code{hmm\_moveapp}/\code{hmmcma}/\code{segmentationcma}): criteria rules or data-driven states with common annotation and diagnostic fields.
+  \item \textbf{Kernel Construction} (\code{kernelcma}): Brownian/correlated state kernels, density estimator configuration, physical time interval, automatic probability-mass support, and serialized kernel metadata.
+  \item \textbf{Random Walks MoveApp}: endpoint-conditioned, state-dependent, and terrain-aware path generation with user-facing animal type, barrier mode, spatial resolution, and movement-model settings.
+  \item \textbf{Utilization Distribution MoveApp}: reuse existing states, calculate conditioned UDs, optionally sample paths, and return spatial artifacts.
+  \item \textbf{Research integration package} (\code{/home/omar/PycharmProjects/RW-Python-gitlab/}): shared Python interfaces, C/CUDA bindings, experiments, reference comparisons, and regression tests.
+\end{itemize}
+
+\section{Cross-component contract}
+
+\begin{itemize}
+  \item Preserve animal identifier, timestamp, geometry, source CRS, projected coordinates, grid coordinates, terrain, state, and original columns.
+  \item Attach metadata for units, projection, raster product, grid origin/cell size, class/state mappings, kernel interval/support, random seeds, component version, and warnings.
+  \item Reject missing or incompatible prerequisites with an actionable error.
+  \item Avoid hidden inference:
+  \begin{itemize}
+    \item the UD app accepts an explicit state column rather than silently refitting behavior;
+    \item local and long-range environmental modes communicate different assumptions about resolution and coverage;
+    \item barrier choices are explicit and taxon-dependent;
+    \item sampled paths remain distinguishable from observations.
+  \end{itemize}
+\end{itemize}
+
+\section{Python/native boundary}
+
+\begin{itemize}
+  \item Python owns ingestion, geospatial preprocessing, model configuration, orchestration, diagnostics, and visualization.
+  \item C/OpenMP/CUDA own performance-critical transition processing and dynamic-programming operations.
+  \item Bindings validate array shape, dtype, memory layout, dimensions, model parameters, kernel mappings, and ownership/lifetime.
+  \item Errors must propagate across the boundary without returning partially valid trajectories.
+  \item Deterministic seeds and stable serialization support regression testing and reproducibility.
+\end{itemize}
+
+\section{User-facing design}
+
+\begin{itemize}
+  \item Expose choices users can interpret ecologically: study range, segmentation method, features/rules, animal type, barrier mode, kernel family, time factor where valid, resolution, and number of sampled paths.
+  \item Derive internal quantities such as exact grid dimensions, kernel cell radius, and minimum feasible transition count where possible.
+  \item Return concise diagnostics explaining automatic choices and adaptations.
+  \item Package intermediate artifacts only when they support inspection, reuse, or reproducibility.
+  \item Include one complete MoveApps workflow screenshot/configuration and one step-by-step artifact trace in the final version.
+\end{itemize}
+
+\section{Testing and provenance}
+
+\begin{itemize}
+  \item Unit tests: coordinates, class mappings, features, normalization, path rasterization, parameter validation, and serialization.
+  \item Property tests: probability conservation, fixed endpoints, barrier compliance, and equivalence of representations.
+  \item Integration tests: each adjacent MoveApps contract and the full workflow.
+  \item Regression tests: representative terrestrial, marine, airborne, local, and long-range studies.
+  \item Numerical tests: serial versus OpenMP/CUDA outputs within declared tolerances.
+  \item Provenance: immutable repository revisions, package versions, app settings, data identifiers, environmental asset identifiers, seeds, and raw output paths.
+\end{itemize}

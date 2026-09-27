@@ -1,0 +1,80 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Motivation: closing the theory--reality gap}
+\label{sec:motivation:-closing-the-theory--reality-gap}
+
+
+
+\begin{itemize}
+  \item The overarching topic is the construction of a usable, realistic animal-movement workflow, not the development of random-walk theory in isolation.
+  \item Existing movement theory provides powerful models for uncertainty between observed fixes, but a field study starts earlier and ends later than the mathematical core:
+  \begin{itemize}
+    \item raw locations must be checked, ordered, projected, and aligned with environmental data;
+    \item heterogeneous sampling and gaps must be separated from changes in behavior;
+    \item empirical motion must be converted into physically meaningful transition kernels;
+    \item environmental restrictions and preferences must be expressed at the same spatial scale as the model;
+    \item model outputs must be returned as interpretable trajectories, probability surfaces, diagnostics, and visual artifacts.
+  \end{itemize}
+  \item The thesis therefore asks how the conditioned-random-walk theory of \textcite{buchin2024randomwalks}, \textcite{hagedoornPhD}, and the environment-aware extension in \textcite{buchin2026advanced} can be made operational for real movement data.
+  \item Readers are not expected to know the theory beforehand:
+  \begin{itemize}
+    \item the intuition precedes notation;
+    \item the dynamic program is introduced as the computational bridge between two observations;
+    \item model choices are tied to ecological meaning and observable data requirements;
+    \item implementation details are introduced only where they affect validity, usability, or scale.
+  \end{itemize}
+  \item MoveApps provides the deployment context because it allows the stages to be combined, replaced, inspected, and reused without requiring users to operate the research code directly.
+\end{itemize}
+
+\section{Central problem}
+
+\begin{itemize}
+  \item \textbf{Input:} time-stamped animal locations with identifiers and a declared coordinate reference system; optionally existing states, environmental attributes, and uncertainty information.
+  \item \textbf{Practical difficulty:} the positions between fixes are unknown, and the plausible routes depend on elapsed time, movement capacity, directional persistence, behavioral state, land cover, barriers, and preprocessing choices.
+  \item \textbf{Required output:}
+  \begin{itemize}
+    \item annotated and segmented trajectories;
+    \item state- or context-specific movement kernels;
+    \item plausible endpoint-conditioned paths;
+    \item finite-interval utilization distributions and visit probabilities;
+    \item static and optional animated Leaflet visualizations that communicate the result without being the scientific focus.
+  \end{itemize}
+  \item \textbf{System requirement:} every stage must preserve units, time, identifiers, coordinate systems, state meanings, raster provenance, kernel intervals, and warnings so that a mathematically valid method remains ecologically meaningful after composition.
+\end{itemize}
+
+\section{Research objective and questions}
+\label{sec:research-questions}
+
+\begin{itemize}
+  \item \textbf{Objective:} design, implement, and evaluate a complete MoveApps-oriented workflow that translates conditioned movement theory into realistic analysis of environmental and tracking data.
+  \item \textbf{RQ1 --- data interface:} How can real tracking records and environmental products be converted into a consistent spatial, temporal, and metadata representation?
+  \item \textbf{RQ2 --- movement structure:} How can gap rules, criteria-based segmentation, BCPA, HMMs, and hybrid approaches produce stable and interpretable inputs for downstream models?
+  \item \textbf{RQ3 --- empirical model construction:} How can observed displacements, behavioral states, and terrain use be converted into physically scaled Brownian or correlated kernels and terrain-transition weights?
+  \item \textbf{RQ4 --- integration:} How can endpoint-conditioned random walks apply these learned kernels and environmental constraints while remaining understandable and configurable to MoveApps users?
+  \item \textbf{RQ5 --- usefulness:} Does the end-to-end workflow produce plausible interpolation and spatial summaries across realistic taxa, landscapes, sampling regimes, and missing-data scenarios?
+  \item \textbf{RQ6 --- feasibility:} Which implementation and parallelization choices make the workflow practical without changing its probability semantics?
+\end{itemize}
+
+\section{Contributions}
+
+\begin{itemize}
+  \item A workflow-level synthesis connecting environmental annotation, projection, segmentation, behavior, kernel estimation, terrain selection, conditioned interpolation, spatial summaries, and visualization.
+  \item Reusable MoveApps components and Python/native interfaces for the complete chain, with explicit contracts and user-facing configuration.
+  \item Criteria-based and data-driven behavioral annotations evaluated as alternative inputs rather than treated as interchangeable ground truth.
+  \item Data-driven, state-specific movement kernels with automatic physical support and explicit sampling-interval semantics.
+  \item Environment-aware movement through hard/relaxed barriers and state-specific terrain-pair weights estimated from used versus available transitions.
+  \item End-to-end validation artifacts, including hidden-point experiments, reference UDs, realistic case studies, computational benchmarks, and interactive Leaflet outputs.
+  \item Parallel CPU and GPU support for selected random-walk and spatial-summary operations, framed as enabling infrastructure rather than the thesis's main motivation.
+\end{itemize}
+
+\section{Scope and structure}
+
+\begin{itemize}
+  \item \Cref{chap:background} supplies the ecological, statistical, and algorithmic concepts needed by a non-specialist reader.
+  \item \Cref{ch:data-environment,chap:segmentation,chap:kernels} follow the actual preprocessing sequence from locations and rasters to usable transition models.
+  \item \Cref{chap:interpolation,chap:spatial-summaries} explain how those inputs become conditioned paths, probability surfaces, and visual outputs.
+  \item \Cref{chap:software} presents the MoveApps components and their interfaces as the integrative contribution.
+  \item \Cref{chap:evaluation,chap:results} evaluate the workflow as a whole and its replaceable stages.
+  \item \Cref{chap:discussion,chap:conclusion} identify what closes the theory--practice gap, what remains model-dependent, and which claims are supported by the evidence.
+\end{itemize}

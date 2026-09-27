@@ -1,0 +1,208 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{config/thesis-style}[2026/09/18 Ecology--algorithmics thesis style]
+
+% Engine and typography -------------------------------------------------------
+\RequirePackage{iftex}
+\ifPDFTeX
+  \RequirePackage[T1]{fontenc}
+  \RequirePackage[utf8]{inputenc}
+  \RequirePackage{mathpazo}
+  \RequirePackage[scaled=0.92]{helvet}
+  \RequirePackage{courier}
+\else
+  \RequirePackage{fontspec}
+  \RequirePackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+  \setmainfont{EBGaramond-Variable.ttf}[
+    Path=assets/fonts/,
+    ItalicFont=EBGaramond-Italic-Variable.ttf,
+    BoldFont=EBGaramond-Variable.ttf,
+    BoldItalicFont=EBGaramond-Italic-Variable.ttf,
+    BoldFeatures={RawFeature={axis={wght=700}}},
+    BoldItalicFeatures={RawFeature={axis={wght=700}}}
+  ]
+  \setsansfont{TeX Gyre Heros}
+  \setmonofont{Latin Modern Mono}
+  \setmathfont{TeX Gyre Pagella Math}
+\fi
+\RequirePackage[final,tracking=true,kerning=true]{microtype}
+\RequirePackage[english]{babel}
+\RequirePackage{csquotes}
+
+% Page and heading design -----------------------------------------------------
+\KOMAoptions{DIV=12,BCOR=8mm,headinclude=true,footinclude=false}
+\recalctypearea
+\RequirePackage{scrlayer-scrpage}
+\clearpairofpagestyles
+\automark[section]{chapter}
+\ihead{\small\headmark}
+\ohead{\small\ifdraftmode\textcolor{HabitatOchre}{DRAFT}\else\pagemark\fi}
+\ifoot{\small\ifdraftmode\pagemark\fi}
+\pagestyle{scrheadings}
+\renewcommand*{\chapterpagestyle}{plain.scrheadings}
+
+\RequirePackage{xcolor}
+\InputIfFileExists{config/themes/\ThesisDesign.tex}{}{%
+  \PackageError{thesis-style}{Unknown thesis design `\ThesisDesign'}%
+  {Choose habitat-grid, field-notes, technical-atlas, or quiet-academic.}%
+}
+
+\setkomafont{disposition}{\sffamily\bfseries\color{DeepInk}}
+\setkomafont{chapter}{\ThemeChapterFont}
+\setkomafont{section}{\ThemeSectionFont}
+\setkomafont{subsection}{\sffamily\bfseries\color{DeepInk}}
+\setkomafont{pageheadfoot}{\sffamily\color{DeepInk}}
+\setkomafont{captionlabel}{\sffamily\bfseries\color{HabitatGreen}}
+\renewcommand*{\chapterformat}{\ThemeChapterFormat}
+\providecommand{\ThemeSetup}{}
+\ThemeSetup
+
+% General document tools ------------------------------------------------------
+\RequirePackage{graphicx}
+\graphicspath{{figures/}}
+\RequirePackage{booktabs}
+\RequirePackage{tabularx}
+\RequirePackage{array}
+\RequirePackage{enumitem}
+\setlist[itemize,enumerate]{nosep,leftmargin=*}
+\RequirePackage{mathtools}
+\RequirePackage{amsthm}
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+\captionsetup{font=small,labelfont=bf,format=plain}
+\RequirePackage{tikz}
+\usetikzlibrary{arrows.meta,calc,fit,positioning,shapes.geometric}
+\RequirePackage[most]{tcolorbox}
+\RequirePackage{listings}
+\RequirePackage{xurl}
+
+% References and links --------------------------------------------------------
+\RequirePackage[
+  backend=biber,
+  style=authoryear-comp,
+  maxcitenames=2,
+  maxbibnames=99,
+  giveninits=true,
+  uniquename=init,
+  doi=true,
+  isbn=false,
+  url=true,
+  sortcites=true
+]{biblatex}
+\RequirePackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=HabitatGreen,
+  citecolor=WaterBlue,
+  urlcolor=WaterBlue,
+  pdfauthor={\ThesisAuthor},
+  pdftitle={\ThesisTitle},
+  pdfsubject={Master's thesis in movement ecology and algorithm engineering},
+  pdfkeywords={animal movement, random walks, MoveApps, utilization distribution, trajectory interpolation}
+}
+\RequirePackage[nameinlink,noabbrev,capitalise]{cleveref}
+
+% Acronyms --------------------------------------------------------------------
+\RequirePackage{acro}
+\acsetup{make-links=true,list/display=all,list/name={Acronyms and abbreviations}}
+\DeclareAcronym{api}{short=API,long=application programming interface}
+\DeclareAcronym{bbmm}{short=BBMM,long=Brownian bridge movement model}
+\DeclareAcronym{cpu}{short=CPU,long=central processing unit}
+\DeclareAcronym{crs}{short=CRS,long=coordinate reference system}
+\DeclareAcronym{dp}{short=DP,long=dynamic programming}
+\DeclareAcronym{esa}{short=ESA,long=European Space Agency}
+\DeclareAcronym{gps}{short=GPS,long=Global Positioning System}
+\DeclareAcronym{gpu}{short=GPU,long=graphics processing unit}
+\DeclareAcronym{hmm}{short=HMM,long=hidden Markov model}
+\DeclareAcronym{kde}{short=KDE,long=kernel density estimate}
+\DeclareAcronym{mcmc}{short=MCMC,long=Markov chain Monte Carlo}
+\DeclareAcronym{stac}{short=STAC,long=SpatioTemporal Asset Catalog}
+\DeclareAcronym{ud}{short=UD,long=utilization distribution}
+\DeclareAcronym{utm}{short=UTM,long=Universal Transverse Mercator}
+
+% Draft prompts ---------------------------------------------------------------
+\newcommand{\draftnote}[1]{%
+  \ifdraftmode
+    \begin{tcolorbox}[
+      enhanced,
+      breakable,
+      colback=MistGreen,
+      colframe=HabitatGreen,
+      boxrule=0.45pt,
+      arc=1.5mm,
+      left=2mm,right=2mm,top=1mm,bottom=1mm,
+      fonttitle=\sffamily\bfseries,
+      title={Writing prompt}
+    ]#1\end{tcolorbox}%
+  \fi
+}
+\newcommand{\placeholder}[1]{%
+  \ifdraftmode
+    \par\smallskip\noindent
+    \fcolorbox{HabitatOchre}{SoftGray}{%
+      \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{\sffamily\small\color{DeepInk}#1}}%
+    \par\smallskip
+  \fi
+}
+\newcommand{\qtyvalue}[2]{\ensuremath{#1\,\mathrm{#2}}}
+\newcommand{\software}[1]{\textsf{#1}}
+\newcommand{\dataset}[1]{\textit{#1}}
+\newcommand{\code}[1]{\nolinkurl{#1}}
+
+% Code listings ---------------------------------------------------------------
+\lstdefinestyle{thesis}{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{HabitatGreen},
+  commentstyle=\itshape\color{WaterBlue},
+  stringstyle=\color{HabitatOchre},
+  backgroundcolor=\color{SoftGray},
+  frame=single,
+  rulecolor=\color{EarthSand},
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true
+}
+\lstset{style=thesis}
+
+% Default title page. Themes may replace the whole layout ---------------------
+\newcommand{\DefaultThemeTitlePage}{%
+  \begin{titlepage}
+    \ThemeCoverBackground
+
+    \sffamily
+    \vspace*{1.4cm}
+    {\color{HabitatGreen}\bfseries\MakeUppercase{Master's thesis}\par}
+    \vspace{1.6cm}
+    \parbox{0.96\textwidth}{\raggedright\color{DeepInk}\bfseries\fontsize{27}{32}\selectfont\ThesisTitle\par}\par
+    \vspace{0.65cm}
+    \parbox{0.92\textwidth}{\raggedright\color{WaterBlue}\fontsize{15}{20}\selectfont\ThesisSubtitle\par}\par
+    \vspace{1.2cm}
+    {\large\ThesisAuthor\par}
+    {\small\color{DeepInk!75}\ThesisAuthorEmail\par}
+    \vspace{0.8cm}
+    \begin{tabular}{@{}>{\bfseries}p{3.5cm}p{8.5cm}@{}}
+      Degree & \ThesisDegree\ in \ThesisProgramme\\[0.25em]
+      First examiner & \ThesisFirstExaminer\\
+      Second examiner & \ThesisSecondExaminer\\
+      Supervisor & \ThesisSupervisor\\
+    \end{tabular}\par
+    \vspace{0.8cm}
+    {\ThesisDepartment\enspace·\enspace\ThesisChair\par}
+    {\bfseries\ThesisUniversity\par}
+    {\ThesisLocation, \ThesisSubmissionDate\par}
+    \vfill
+  \end{titlepage}
+}
+\providecommand{\ThemeTitlePage}{\DefaultThemeTitlePage}
+\newcommand{\makethesistitle}{%
+  \ThemeTitlePage
+  \cleardoublepage
+}
+
+% Miscellaneous defaults ------------------------------------------------------
+\setlength{\emergencystretch}{2em}
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\raggedbottom
