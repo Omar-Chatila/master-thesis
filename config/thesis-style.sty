@@ -42,6 +42,17 @@
 \renewcommand*{\chapterpagestyle}{plain.scrheadings}
 
 \RequirePackage{xcolor}
+% Shared by the main document and all design entry points.
+\newcommand{\colorswatch}[1]{%
+  \begingroup
+  \setlength{\fboxsep}{0pt}%
+  \raisebox{-0.25em}{%
+    \fcolorbox{black}{white}{%
+      \color[HTML]{#1}\rule{1.4em}{1.4em}%
+    }%
+  }%
+  \endgroup
+}
 \InputIfFileExists{config/themes/\ThesisDesign.tex}{}{%
   \PackageError{thesis-style}{Unknown thesis design `\ThesisDesign'}%
   {Choose habitat-grid, field-notes, technical-atlas, or quiet-academic.}%
@@ -63,6 +74,8 @@
 \RequirePackage{booktabs}
 \RequirePackage{tabularx}
 \RequirePackage{array}
+\RequirePackage{algorithm}
+\RequirePackage{algpseudocode}
 \RequirePackage{enumitem}
 \setlist[itemize,enumerate]{nosep,leftmargin=*}
 \RequirePackage{mathtools}
