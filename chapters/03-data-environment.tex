@@ -589,9 +589,84 @@ For this part of the experiments we use our two long-range studies Siberian Ruby
 
 \subsection{Results}
 \label{subsec:projection-benchmark-results}
-
 \subsubsection{Distance fidelity}
+The plots in \Cref{fig:dist-fidelity} show a comparison of length distortion, expressed as the mean absolute percentage error, between the different projection types per study.
 \label{subsubsec:dist-fidelity}
+\begin{figure}[h]
+        \centering
+        \includegraphics[width=\textwidth]{figures/chapter03/bench/distance_fidelity}
+        \caption{}
+        \label{fig:dist-fidelity}
+\end{figure}
+As expected, the Web Mercator projection exhibits the greatest scale distortion across all studies.
+The remaining projections have relatively low percentage errors, never exceeding 1\%, and the best projection depends on the dataset.
+Notably, in the Slovenia Bears study, LTMP and AEQD exhibit significantly lower errors than UTM and LAEA.
+This can be explained by the study's low range, which results in a relatively high proximity to the projection center compared to UTM.
+Whether consecutive or random point pairs are examined, does not have any influence on the general trend.
+\subsubsection{Local scale and directional distortion}
+\Cref{fig:anisotropy} displays the comparisons of local length and shape distortion, using the 95th percentile of the largest local scale distortion metric, $s_i$, and the Tissot anisotropy, $A_i$.
+\label{subsubsec:anisotropy}
+\begin{figure}[h]
+        \centering
+        \includegraphics[width=\textwidth]{figures/chapter03/bench/local_scale_and_anisotropy}
+        \caption{}
+        \label{fig:anisotropy}
+\end{figure}
+The results for scale distortion show a similar overall pattern to the results from \Cref{fig:dist-fidelity}.
+Web Mercator exhibits the highest scale error across all studies.
+UTM, LTMP, and both Azimuthal projections result in much lower scale error, with their ordering depending on the dataset.
+Once again, LTMP and AEQD achieve comparatively much lower error rates in the locally confined bears study.
+
+
+In terms of shape distortion, both UTM/UPS and LTMP demonstrate Tissot's anisotropy close to unity, which is consistent with their conformality and the preservation of local angles.
+In contrast, the two azimuthal projections demonstrate directional distortion.
+AEQD preserves distances from the projection centre, while LAEA preserves area; however, neither projection generally preserves local angles.
+The Web Mercator projection also shows very low anisotropy in this benchmark, but since it has the worst scale distortion of all the projections compared,
+it is unsuitable for the metric computations considered here
+
+\subsubsection{Grid discretization error}
+\label{subsubsec:grid-discretization-error}
+The plot in \Cref{fig:error-res} depicts the 95th percentile round-trip error $G_{95}$, primarily caused by grid-discretization, for our study-set using either UTM/UPS or LTMP.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/chapter03/bench/error_by_resolution}
+    \caption{}
+    \label{fig:error-res}
+\end{figure}
+
+It is evident that the discretization error decreases with increasing resolution, as the projected quantization error $\epsilon$ decreases with smaller cell sizes.
+Using either UTM/UPS or LTMP does not affect the general trend.
+Overall, long-range studies still exhibit large deviations of approximately $1.3-1.8 \mathrm{ km}$, even at high resolutions such as 1024.
+In cases like these, the windowing procedure from \Cref{alg:windowing-algorithm} allows for a more detailed spatial representation per window while maintaining the same grid resolution
+and comparable computational cost per interpolation.
+
+\subsubsection{Windowing for Long-Range Trajectories}
+\label{subsubsec:bench-windowing}
+\Cref{fig:windowing-comp} illustrates the comparison of the 95th percentile geodesic grid displacement $Q_{95}$ and the distance
+preservation metric MAPE for both single window projections and independent local windows with a fixed radius of $50 \mathrm{km}$ and grid resolution of 1024 for two long-range studies.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/chapter03/bench/windowing_comparison}
+    \caption{}
+    \label{fig:windowing-comp}
+\end{figure}
+
+Regarding geodesic grid displacement, the $Q_{95}$ error decreased by $76-78\%$ for the rubythroat migration study and $98\%$ for the arctic fox study.
+Here, the difference between UTM/UPS and LTMP is negligible.
+Windowing yields similar improvements in MAPE, with error decreasing by up to $94.4\%$ for the rubythroat study and $99.993\%$ for the arctic fox study.
+However, LTMP yields considerably lower distance errors, particularly in the Arctic fox study.
+
+The Arctic fox trajectory benefits more from windowing because oversized jumps are relatively rare and much shorter than those in the rubythroat trajectory.
+Consequently, large windows affect a smaller proportion of fixes and have less influence on the pooled 95^(th)-percentile grid displacement.
+In contrast, the sparsely sampled rubythroat trajectory contains several steps of over 1000 km, resulting in large windows with significant remaining discretization error.
+
+
+\subsubsection{Benchmark Conclusion}
+\label{subsubsec:bench-conclusion}]
+
+
 
 \begin{itemize}
     \item Abbildung mit \(p95\) des lokalen Maßstabsfehlers:
@@ -981,7 +1056,7 @@ The complete terrain-annotation procedure can be summarized as follows:
 \label{alg}
 \begin{algorithmic}[1]
 \Require trajectory collection \(T\), range type \(r\), projection \(p\), resolution \(q\)
-\Ensure annotated collection and per-animal terrain artifacts
+\Ensure annotated collection, and per-animal terrain artifacts
 
 \State \(T' \gets\) copy of \(T\)
 
