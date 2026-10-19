@@ -1,7 +1,10 @@
 \chapter{Trajectory Segmentation and Behavioral Annotation}
 \label{chap:segmentation}
 
+
+
 \section{Distinct preprocessing decisions}
+\label{sec:distinct-preprocessing-decisions}
 
 \begin{itemize}
   \item \textbf{Gap splitting:} prevent long or irregular observation intervals from entering feature and kernel estimation as ordinary steps.
@@ -12,6 +15,7 @@
 \end{itemize}
 
 \section{Features}
+\label{sec:features}
 
 \begin{itemize}
   \item Candidate features implemented in \code{hmmcma}: speed, distance, turning angle, absolute direction, angular difference, persistence velocity, and terrain.
@@ -22,6 +26,7 @@
 \end{itemize}
 
 \section{Criteria-based segmentation}
+\label{sec:criteria-based-segmentation}
 
 \begin{itemize}
   \item Use the stable-criteria framework of \textcite{alewijnse2014segmentation} as the principal reference for rule-based segmentation.
