@@ -515,7 +515,7 @@ This process is repeated for the remainder of the trajectory ($\tau[j', n]$) unt
 The end result is a set of segments, each satisfying $C$.
 
 On the other hand, a criterion is called \emph{increasing monotone}, if, whenever it holds on a segment, it also holds on every segment containing it.
-The increasing monotone criteria considered in this work are summarized in \Cref{tab:increasing-monotone}:
+The increasing monotone criteria considered in this work are summarized in \Cref{tab:increasing-criteria}:
 
 \begin{table}[htbp]
     \centering
@@ -537,240 +537,81 @@ The increasing monotone criteria considered in this work are summarized in \Cref
         \bottomrule
     \end{tabularx}
 \end{table}
+Like with decreasing monotone criteria, the conjunction and disjunction of increasing monote criteria is also increasing monotone.
+Generally, a combination of increasing and decreasing criteria like staying within a range for 24h is neither increasing nor decreasing monotone.
+Looking at the minimum duration criterion, it becomes evident that the Greedy strategy fails for such criteria, 
+as extending a segment as long as the condition is satisfied, may result in a remainder that is too short to satisfy the condition.
 
+
+\paragraph{Combining criteria and movement states}
+We define behavioral states through single criteria or the combination of multiple criteria.
+For example, a set of criteria for the states resting, foraging and traveling can be defined as 
+\[
+\begin{aligned}
+C_R &=
+C_{\mathrm{disk}}(25\,\mathrm m)
+\land C_{\mathrm{duration}}(300\,\mathrm s),\\
+C_F &=
+C_{\mathrm{disk}}(100\,\mathrm m)
+\land \neg C_{\mathrm{disk}}(25\,\mathrm m),\\
+C_T &=
+C_{\mathrm{heading}}(35^\circ)
+\land \neg C_{\mathrm{disk}}(100\,\mathrm m).
+\end{aligned}
+\]
+
+Here, the resting state is characterized as a prolonged stay of at least 300 s within a confined area of radius 25 m.
+The foraging state corresponds to movement within a radius of 100 m that extends beyond the resting area. 
+The traveling state is described as movement in similar directions that does not remain within the foraging range.
+
+Negations pertain to the entire candidate segment, making the criteria $C_R$, $C_F$ and $C_T$ mutually exclusive.
+The three conditions are summarized to $C = C_R \vee C_F \vee C_T$, such that every segment satisfies at least one of the conditions.
+A segment satisfying $C$ is then assigned the corresponding state whose condition holds on it.
+
+\paragraph{Stable criteria}
 
 \begin{itemize}
-    \item Ein \emph{decreasing monotone criterion} bleibt
-    bei der Einschränkung auf beliebige Teilsegmente
-    eines gültigen Segments erfüllt.
-    \item Beispiel eines Geschwindigkeitskriteriums:
-    Beschränkung der Differenz zwischen größter und
-    kleinster Geschwindigkeit innerhalb eines
-    Segments auf einen Wert $\alpha_v$.
-    \item Diese Spannweitenbedingung beschreibt
-    Geschwindigkeitshomogenität und keine obere
-    Schranke für die Geschwindigkeit selbst.
-    \item Das \emph{angular range criterion} beschränkt
-    den kleinsten Kreisbogen, der alle relevanten
-    Richtungswerte eines Segments enthält.
-    \item Das \emph{disk criterion} verlangt, dass
-    sämtliche Positionen des Segments von einer
-    Kreisscheibe mit vorgegebenem Radius $r$
-    überdeckt werden können.
-    \item Für ausschließlich decreasing monotone
-    Kriterien liefert die Greedy-Strategie eine
-    optimale Segmentierung, indem jeweils das
-    längste gültige Segment gewählt wird.
-    \item Ein \emph{increasing monotone criterion}
-    bleibt dagegen bei der Erweiterung eines
-    gültigen Segments erhalten, beispielsweise
-    eine Mindestdauer.
-    \item Konjunktion und Disjunktion decreasing
-    monotone Kriterien bleiben decreasing monotone;
-    entsprechend gilt dies für increasing
-    monotone Kriterien.
-    \item Kombinationen beider Arten sind im Allgemeinen
-    weder decreasing noch increasing monotone,
-    weshalb Greedy keine allgemeine Lösung liefert.
-    \item Beispielsweise kann ein möglichst langes
-    erstes Segment einen verbleibenden Rest erzeugen,
-    der eine geforderte Mindestdauer nicht mehr erfüllt.
+    \item Einordnung der verwendeten Kriterienkombinationen
+    in die allgemeinere Klasse der \emph{stable criteria}.
+    \item Betrachtung der Gültigkeitswechsel beim
+    Verschieben des Startindex für einen festen Endindex;
+    ein Kriterium ist stabil, wenn über alle Endindizes
+    insgesamt nur linear viele solche Wechsel auftreten.
+    \item Decreasing und increasing monotone Kriterien
+    sind stabil; diese Eigenschaft bleibt auch bei
+    Konjunktion, Disjunktion und Negation erhalten.
+    \item Damit umfasst das Framework insbesondere
+    Kombinationen wie räumliche Begrenztheit und
+    Mindestdauer, für die die Greedy-Strategie
+    keine allgemeine Lösung liefert.
 \end{itemize}
-
-% Grafikidee:
-% Gegenüberstellung einer Greedy-Partition mit ungültigem
-% Restsegment und einer gültigen alternativen Partition.
-% Orientierung: Vorlesung, PDF-S. 34; Paper, Abschnitt 2.
-% Für ein eigenes Zahlenbeispiel Rand- und Dauerbedingungen
-% ausdrücklich festlegen.
 
 
 \paragraph{Start-stop diagram}
 
 \begin{itemize}
-    \item Darstellung aller Kandidatensegmente im
-    \emph{start-stop diagram} $D$.
-    \item Die horizontale Koordinate $i$ beschreibt
-    den Startindex und die vertikale Koordinate $j$
-    den Endindex des Segments $\tau[i,j]$.
-    \item Betrachtung des dreieckigen Bereichs
-    $0\leq i\leq j\leq n$.
-    \item Ein Eintrag gehört zum \emph{free space},
-    wenn $C(i,j)$ erfüllt ist, andernfalls zum
-    \emph{forbidden space}.
-    \item Eine Segmentierung entspricht einer
-    \emph{staircase}, deren Segmentendpaare
+    \item Darstellung der Kandidatensegmente im
+    \emph{start-stop diagram} $D$, wobei die horizontale
+    Koordinate den Startindex $i$ und die vertikale
+    Koordinate den Endindex $j$ beschreibt.
+    \item Ein Eintrag $(i,j)$ gehört zum
+    \emph{free space}, wenn $\tau[i,j]$ das Kriterium
+    erfüllt, andernfalls zum \emph{forbidden space}.
+    \item Darstellung einer gültigen Segmentierung
+    als \emph{staircase}, deren Segmentendpaare
     $(s_{\ell-1},s_\ell)$ im free space liegen
     und über die gemeinsame Diagonale verbunden werden.
-    \item Die Suche nach einer minimalen Segmentierung
-    entspricht damit der Suche nach einer
-    \emph{min-link staircase}.
+    \item Bestimmung einer minimalen Segmentierung
+    durch die Suche nach einer \emph{min-link staircase},
+    welche die gesamte Trajektorie abdeckt.
+    \item Bei gleicher minimaler Segmentzahl Verwendung
+    zustandsabhängiger Tie-Breaking-Präferenzen,
+    beispielsweise möglichst lange stopovers
+    und möglichst kurze flight-Segmente.
+    \item Übergabe der resultierenden Segmentlabels
+    an die anschließende Schätzung zustandsabhängiger
+    Übergangskerne.
 \end{itemize}
-
-% Grafikidee:
-% Links eine kurze Trajektorie mit Segmentgrenzen,
-% rechts das zugehörige Start-Stop-Diagramm.
-% Gültige Einträge weiß, ungültige grau und die
-% gewählte Staircase farbig darstellen.
-% Orientierung: Vorlesung, PDF-S. 36--40;
-% Paper, Abbildung 3.
-
-
-\paragraph{Computing an optimal segmentation}
-
-\begin{itemize}
-    \item Nutzung der optimalen Teilstruktur:
-    Eine optimale Segmentierung von $\tau[0,i]$
-    besteht aus einer optimalen Segmentierung
-    von $\tau[0,j]$ und einem gültigen letzten
-    Segment $\tau[j,i]$.
-    \item Speicherung der besten bisherigen Lösung
-    in einer Tabelle $S[0..n]$ mit den Feldern
-    \texttt{count} und \texttt{last}.
-    \item $S[i].\mathrm{count}$ beschreibt die minimale
-    Segmentzahl für $\tau[0,i]$, während
-    $S[i].\mathrm{last}$ den Startindex des
-    letzten Segments speichert.
-    \item Initialisierung mit
-    $S[0].\mathrm{count}=0$ und Berechnung durch
-    \[
-        S[i].\mathrm{count}
-        =
-        1+
-        \min_{\substack{0\leq j<i\\C(j,i)}}
-        S[j].\mathrm{count}.
-    \]
-    \item Speicherung eines minimierenden Index
-    $j$ in $S[i].\mathrm{last}$ und anschließende
-    Rückverfolgung ab dem letzten Trajektorienindex.
-    \item Existiert kein gültiger erreichbarer
-    Vorgänger, bleibt der Eintrag bei $\infty$.
-    \item Die einfache Variante betrachtet alle
-    gültigen Startindizes einzeln und benötigt
-    bei vorliegendem Start-Stop-Diagramm
-    $\mathcal O(n^2)$ Zeit.
-\end{itemize}
-
-
-\paragraph{Stable criteria and compressed diagrams}
-
-\begin{itemize}
-    \item Verallgemeinerung monotoner Kriterien
-    durch die Klasse der \emph{stable criteria}.
-    \item Für einen festen Endindex $i$ bezeichnet
-    $v(i)$ die Zahl der Gültigkeitswechsel entlang
-    der Kandidatensegmente
-    $\tau[0,i],\tau[1,i],\ldots,\tau[i-1,i]$.
-    \item Ein Kriterium ist stabil, wenn insgesamt
-    nur linear viele solcher Wechsel auftreten:
-    \[
-        \sum_{i=0}^{n}v(i)=\mathcal O(n).
-    \]
-    \item Decreasing und increasing monotone
-    Kriterien sind stabil; auch ihre Konjunktionen,
-    Disjunktionen und Negationen bleiben stabil.
-    \item Kompression des Start-Stop-Diagramms durch
-    zeilenweises \emph{run-length encoding}.
-    \item Zusammenhängende Folgen gültiger Einträge
-    bilden \emph{blocks}, ungültige Folgen
-    bilden \emph{gaps}.
-    \item Bei decreasing monotone Kriterien folgen
-    für einen festen Endindex auf einen optionalen
-    gap die gültigen Startindizes als ein block;
-    bei increasing monotone Kriterien ist die
-    Reihenfolge umgekehrt.
-    \item Stabile Kriterien ermöglichen insgesamt
-    eine Darstellung mit $\mathcal O(n)$ blocks
-    und gaps anstelle sämtlicher quadratisch
-    vieler Einträge.
-    \item Konjunktion entspricht dem Schnitt
-    der freien Bereiche, Disjunktion ihrer
-    Vereinigung und Negation dem Vertauschen
-    von free und forbidden space.
-\end{itemize}
-
-
-\paragraph{Efficient construction and range queries}
-
-\begin{itemize}
-    \item Für decreasing monotone Kriterien
-    Bestimmung des frühesten gültigen Starts
-    zu jedem Endindex mit
-    \texttt{ComputeLongestValid}.
-    \item Verschiebung zweier Zeiger über die
-    Trajektorie, ohne bereits betrachtete
-    Startpositionen für jedes Ende neu zu durchsuchen.
-    \item Pflege einer kriterienspezifischen
-    Datenstruktur mit den Operationen
-    \emph{isValid}, \emph{extend} und
-    \emph{shorten}.
-    \item Bei Aktualisierungs- und Abfragekosten
-    $c(n)$ ergibt sich ein Aufwand von
-    $\mathcal O(nc(n))$ für dieses Verfahren.
-    \item Beschleunigung der anschließenden
-    dynamischen Programmierung durch gemeinsame
-    Verarbeitung eines ganzen blocks gültiger
-    Startindizes.
-    \item Ersetzung der einzelnen Tabellenabfragen
-    durch eine Bereichsanfrage nach dem kleinsten
-    bisherigen \texttt{count} innerhalb des blocks.
-    \item In der Vorlesung Verwendung eines
-    augmentierten balancierten Suchbaums $T$,
-    dessen Knoten \texttt{index}, \texttt{last}
-    und \texttt{count} sowie das Minimum
-    im jeweiligen Teilbaum speichern.
-    \item Bearbeitung einer Bereichsanfrage in
-    $\mathcal O(\log n)$ und damit Berechnung
-    der optimalen Segmentierung in
-    $\mathcal O(n\log n)$ aus einem komprimierten
-    Diagramm mit linear vielen blocks.
-    \item Für die im Framework effizient
-    konstruierbaren stabilen Kriterien ergibt
-    sich einschließlich der Diagrammkonstruktion
-    eine Gesamtlaufzeit von
-    $\mathcal O(n\log n)$.
-\end{itemize}
-
-% Grafikidee:
-% Eine Zeile des komprimierten Start-Stop-Diagramms
-% mit einem gültigen block markieren und daneben
-% die Bereichsanfrage auf bisherige count-Werte zeigen.
-% Orientierung: Vorlesung, PDF-S. 43 und 50.
-
-
-\paragraph{Segmentation by movement states}
-
-\begin{itemize}
-    \item Beschreibung jedes Bewegungszustands
-    durch ein eigenes Kriterium $C_\ell$.
-    \item Segmentierung anhand der Disjunktion
-    $C=C_1\lor\cdots\lor C_K$, sodass jedes
-    gültige Segment mindestens eine
-    Zustandsdefinition erfüllt.
-    \item Zuordnung des Labels des ausgewählten
-    Kriteriums zum jeweiligen Segment.
-    \item Beispiel aus der Gänsemigration:
-    Beschreibung eines stopover durch das
-    disk criterion in Verbindung mit einer
-    Mindestdauer.
-    \item Beschreibung von migration flight
-    durch eine begrenzte angular range
-    der Bewegungsrichtung.
-    \item Direkte Zustandszuweisung aus den
-    vorgegebenen Kriterien, ohne nachgelagertes
-    Clustering der Segmentmerkmale.
-    \item Mehrere Partitionen können dieselbe
-    minimale Segmentzahl besitzen und sich
-    dennoch in ihren Grenzpositionen unterscheiden.
-    \item Verwendung zustandsabhängiger
-    \emph{tie-breaking rules}, beispielsweise
-    möglichst lange stopovers und möglichst
-    kurze flight-Segmente.
-    \item Diese Präferenzen entscheiden zwischen
-    gleich guten Lösungen und ersetzen nicht
-    das primäre Ziel der minimalen Segmentzahl.
-\end{itemize}
-
 
 \paragraph{Application in the pipeline}
 
