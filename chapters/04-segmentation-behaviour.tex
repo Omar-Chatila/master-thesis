@@ -450,36 +450,94 @@ and zero otherwise.
 
 \section{Criteria-Based Segmentation}
 \label{sec:crit-segmentation}
+In criteria-based segmentation, movement phases in a trajectory are defined based on explicit spatial, temporal, or movement-related criteria.
+The user defines characteristics such as limited spatial extent for resting, or low variation in movement direction for traveling.
+Regarding a trajectory $\tau$ with time-stamped positions $(x_i, y_i, t_i)\, i \in \{1,  \ldots, n\}$ and a criterion $C$,
+a subtrajectory $\tau[i, j]$ is valid under $C$, if $C(i,j)$ evaluates to true.
 
-\paragraph{Problem formulation}
-
-\begin{itemize}
-    \item Definition von Bewegungsphasen durch explizite
-    räumliche, zeitliche oder bewegungsbezogene Kriterien.
-    \item Vorgabe der gewünschten Eigenschaften durch
-    den Anwender, beispielsweise begrenzte räumliche
-    Ausdehnung oder geringe Variation der Bewegungsrichtung.
-    \item Betrachtung einer Trajektorie $\tau$ mit
-    zeitgestempelten Positionen $(x_i,y_i,t_i)$,
-    indiziert von $0$ bis $n$.
-    \item Bezeichnung der Teiltrajektorie von Index $i$
-    bis einschließlich Index $j$ als $\tau[i,j]$.
-    \item Ein Kriterium $C$ ordnet jedem Kandidatensegment
-    einen Wahrheitswert $C(i,j)$ zu und bezeichnet
-    $\tau[i,j]$ als gültig, wenn die Bedingung erfüllt ist.
-    \item Gesucht ist eine Partition
-    $\tau[s_0,s_1],\ldots,\tau[s_{k-1},s_k]$
-    mit $0=s_0<\cdots<s_k=n$, deren Segmente
-    das Kriterium erfüllen.
-    \item Aufeinanderfolgende Segmente teilen ihren
-    Grenzpunkt, besitzen jedoch disjunkte Innere.
-    \item Optimierungsziel ist die minimale Segmentzahl
-    $k$, sodass die geforderten Eigenschaften mit
-    möglichst wenigen Unterteilungen beschrieben werden.
-\end{itemize}
-
+Criteria need to be defined per desired state.
+The objective is to find the minimum number of segments $\tau[s_0, s_1], \ldots, \tau[s_{k-1}, s_k]$ with $0 = s_0 < \cdots < s_k = n$
+satisfying the aforementioned criteria.
 
 \paragraph{Criteria and monotonicity}
+A criterion is called \emph{decreasing monotone} if, whenever it holds on a segment, it also holds on
+every subsegment.
+The decreasing monotone criteria considered in this work are summarized in \Cref{tab:decreasing-criteria}.
+% Requires booktabs and tabularx.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Decreasing monotone segmentation criteria.
+    Attribute values refer to the candidate segment
+    $\tau[i,j]$.}
+    \label{tab:decreasing-criteria}
+    \begin{tabularx}{\textwidth}{@{}lX@{}}
+        \toprule
+        Criterion & Validity condition \\
+        \midrule
+
+        Maximum hops &
+        The number of steps satisfies $j-i\leq h_{\max}$.
+        \\[0.5em]
+
+        Speed range &
+        The difference between the largest and smallest
+        speed satisfies $\max(v)-\min(v)\leq\alpha_v$.
+        \\[0.5em]
+
+        Angular range of heading &
+        All headings can be covered by a circular arc
+        of width at most $\alpha_h$.
+        \\[0.5em]
+
+        Angular range of turning angle &
+        All turning angles can be covered by a circular
+        arc of width at most $\alpha_\theta$.
+        \\[0.5em]
+
+        Disk &
+        All recorded positions can be covered by a disk
+        of radius $r$.
+        \\
+
+        \bottomrule
+    \end{tabularx}
+\end{table}
+The range criteria can additionally allow up to a user-defined number $q$ of outliers.
+Under this condition, they remain decreasing monotone, as shrinking a segment cannot increase the number of outliers.
+
+The disjunction and conjunction of monotone decreasing criteria is also monotone decreasing.
+For exclusively decreasing monotone criteria, a Greedy strategy yields the optimal segmentation as follows:
+
+Starting with the first two fixes, a segment $\tau[i, j]$ is extended as long as the criterion $C$ holds.
+The trajectory is cut at the first fix $j' = j + 1$ violating $C$ and the segment $\tau[i, j]$ is reported.
+This process is repeated for the remainder of the trajectory ($\tau[j', n]$) until the the end is reached.
+The end result is a set of segments, each satisfying $C$.
+
+On the other hand, a criterion is called \emph{increasing monotone}, if, whenever it holds on a segment, it also holds on every segment containing it.
+The increasing monotone criteria considered in this work are summarized in \Cref{tab:increasing-monotone}:
+
+\begin{table}[htbp]
+    \centering
+    \caption{Increasing monotone segmentation criteria.}
+    \label{tab:increasing-criteria}
+    \begin{tabularx}{\textwidth}{@{}lX@{}}
+        \toprule
+        Criterion & Validity condition \\
+        \midrule
+
+        Minimum hops &
+        The number of steps satisfies $j-i\geq h_{\min}$.
+        \\[0.5em]
+        Minimum duration &
+        The elapsed time satisfies
+        $t_j-t_i>\Delta t_{\min}$.
+        \\
+
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
 
 \begin{itemize}
     \item Ein \emph{decreasing monotone criterion} bleibt
