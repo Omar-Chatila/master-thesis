@@ -1,75 +1,760 @@
 \chapter{Trajectory Segmentation and Behavioral Annotation}
-\label{chap:segmentation}
+\label{ch:segmentation}
+The second module of our pipeline aims to identify segments within each trajectory that share similar characteristics.
+These segments are assigned to \emph{states}, or recurring movement classes, where the features of segments within the same state are closer to each other than to those in other states.
+Each state can optionally be assigned a biological interpretation, such as resting, foraging or traveling.
+The objective is to use these groups of displacements with comparable movement properties to estimate state-dependent transition kernels.
+This enables different probability distributions and step lengths depending on the distinct stages of a trajectory.
+
+We distinguish between two types of segmentation method: data-driven and criteria-based.
+Data-driven approaches learn patterns from given features and a number of states, whereas criteria-based segmentation requires user-defined rules.
+The trajectories are augmented with state labels for each record and passed on to the transition-kernel module.
 
 
+\section{Data-Driven Segmentation}
+\label{sec:data-driven-segmentation}
+Data-driven approaches, such as Hidden Markov Models (HMMs) and Behavioral Change Point Analysis (BCPA), identify patterns in a trajectory based on features like velocity and turning angle.
+These features are typically calculated for each fix relative to the previous record.
+Therefore, it is important that the trajectory is sampled regularly and coherently, without large gaps, so that missing records are not misinterpreted.
 
-\section{Distinct preprocessing decisions}
-\label{sec:distinct-preprocessing-decisions}
+In a preprocessing step, each trajectory is split at observation gaps whose duration exceeds five times the median observation interval.
+These sub-trajectories are handled separately to ensure that unusual transitions are not modeled across long observation gaps, possibly caused by poor GPS reception or other technical issues rather than biological factors.
+
+\subsection{Features}
+\label{subsec:features}
+Features are attributes of a dataset from which machine learning (ML) algorithms derive patterns.
+During training, ML models process the various combinations of these features and identify how they relate to the target variable.
+In the case of animal trajectories, features are calculated from consecutive displacements and their time-stamps
+    \[
+        \mathbf{d}_i=\mathbf{x}_i-\mathbf{x}_{i-1},
+        \qquad
+        \Delta t_i=t_i-t_{i-1},
+    \]
+where $\mathbf{x}_i$ denotes the projected position at time $t_i$.
+Our target variable is a number $S_i \in \{1, \ldots K\}$ denoting the behavioral state, where the user-defined variable $K$ stands for the number of expected states.
+
+
 
 \begin{itemize}
-  \item \textbf{Gap splitting:} prevent long or irregular observation intervals from entering feature and kernel estimation as ordinary steps.
-  \item \textbf{Segmentation:} locate intervals with comparatively coherent movement properties.
-  \item \textbf{Behavioral annotation:} assign a rule-based label or latent state to points or segments.
-  \item \textbf{Downstream purpose:} provide internally consistent groups of displacement observations for state-specific kernels.
-  \item Treating these operations as one step risks fitting sampling artifacts rather than movement behavior.
+    \item Beschreibung der Bewegung durch Merkmale aufeinanderfolgender Displacements
+    wobei $\mathbf{x}_i$ die projizierte Position zum Zeitpunkt $t_i$ bezeichnet.
+
+    \item Schrittlänge $\ell_i=\lVert\mathbf{d}_i\rVert$ als Maß für die räumliche Ausdehnung eines beobachteten Ortswechsels.
+    \item Geschwindigkeit $v_i=\ell_i/\Delta t_i$ als zeitnormierte Verschiebung zwischen zwei Beobachtungen, ohne Berücksichtigung des tatsächlich zurückgelegten Weges.
+    \item Bewegungsrichtung als absolute Orientierung eines Displacements im projizierten Koordinatensystem.
+    \item Richtungsänderung $\theta_i$ als kleinerer, vorzeichenloser Winkel zwischen aufeinanderfolgenden Displacements, ohne Unterscheidung zwischen Links- und Rechtsdrehungen.
+    \item Persistenzmaß
+    \[
+        p_i=
+        \mathbf{d}_i\cdot
+        \frac{\mathbf{d}_{i-1}}{\lVert\mathbf{d}_{i-1}\rVert}
+        =\ell_i\cos\theta_i
+    \]
+    als Komponente des aktuellen Displacements entlang der vorherigen Bewegungsrichtung.
+    \item Positive Persistenzwerte kennzeichnen eine Fortsetzung der vorherigen Richtung, negative Werte eine entgegengesetzte Bewegungskomponente.
+    \item Optionale Einbeziehung der zuvor annotierten Terrainklasse zur Unterscheidung umgebungsabhängiger Bewegungsmuster.
+    \item Auswahl der Merkmale entsprechend den zu unterscheidenden Bewegungseigenschaften, beispielsweise Bewegungsintensität oder Richtungspersistenz.
+    \item Vermeidung redundanter Merkmale, da Schrittlänge und Geschwindigkeit bei konstantem Beobachtungsintervall dieselbe Information enthalten.
 \end{itemize}
 
-\section{Features}
-\label{sec:features}
+\subsection{Hidden Markov Model}
+\label{subsec:hmm}
+Considering an exemplary trajectory with varying speeds and three assumed movement states, resting (R), foraging (F) and traveling (T),
+we can observe time-stamped positions and derive speeds; however, the underlying states of motion are unknown.
+The naive approach of assigning states from speed thresholds is impractical, as speed intervals may overlap across different states.
+
+HMM links observable features to a hidden, temporally coherent sequence of states.
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\parbox{0.9\textwidth}{
+        \textbf{Grafikplatzhalter: Beispieltrajektorie}\\
+        Oben: Trajektorie mit Fixes in gleichen Zeitabständen;
+        geringe Punktabstände während langsamer Bewegung und
+        größere Abstände während schneller Bewegung.\\
+        Darunter: zugehörige Geschwindigkeit über der Zeit,
+        einschließlich einiger mehrdeutiger Werte zwischen
+        den beiden typischen Geschwindigkeitsbereichen.
+    }}
+    \caption{Illustrative trajectory and its observed movement speeds.}
+    \label{fig:hmm-example}
+\end{figure}
+
+
+\paragraph{Hidden states and state transitions}
+The hidden states $S_i \in \{R, F, T\}$ are modeled as a first-order Markov Chain, meaning that the next state, given a current state, is independent of the preceding states:
+\[
+        P(S_i=F\mid S_{i-1}=R,\ldots,S_T)
+        =
+        P(S_i=F\mid S_{i-1}=R).
+\]
+
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\parbox{0.9\textwidth}{
+        \textbf{Grafikplatzhalter: Zustände und Emissionen}\\
+        Links: zwei Zustandsknoten mit gerichteten
+        Übergängen und Selbstschleifen entsprechend $A$.\\
+        Rechts: zwei überlappende Emissionsdichten über
+        der Geschwindigkeit, jeweils in derselben Farbe
+        wie der zugehörige Zustand.\\
+        Einen Geschwindigkeitswert im Überlappungsbereich
+        markieren, der zu beiden Zuständen passen kann.
+    }}
+    \caption{State transitions and state-dependent emission densities.}
+    \label{fig:hmm-states-emissions}
+\end{figure}
+
+
+Transitions probabilities between states are described via a transition matrix $A$, such that an entry $A_{RF}=0.09$ denotes the probability of transitioning from state R to state F.
+\[
+        A=
+        \begin{pmatrix}
+            0.90 & 0.09 & 0.01 \\
+            0.05 & 0.90 & 0.05 \\
+            0.01 & 0.09 & 0.90 \\
+        \end{pmatrix}.
+    \]
+A start distribution is required for the first state, since there is no state preceding it.
+Here,
+\[
+    \pi=(0.6,\;0.3,\;0.1)
+\]
+represents a $60\%$ probability of starting in the state R.
+
+States are assigned distributions according to our \emph{emission} variable velocity.
+The \emph{emission distribution}
+\[
+    V_i\mid S_i=s\sim\mathcal N(\mu_s,\sigma_s^2)
+\]
+describes the probability density as a normal distribution around state $S_i$, where $\mu_s$ denotes the mean speed and $\sigma_s$ stands for the standard deviation.
+
+Using our example values from \Cref{tab:emission-dist}, a velocity of 0.4 m/s evaluates to \(
+f_R(0{,}4)\approx0{,}219,
+\text{ and } f_F(0{,}4)\approx0{,}444
+\)
+when input into the respective normal distribution densities.
+This means that a velocity of 0.4 m/s fits roughly twice as well to the foraging state as to the resting state.
+Given a state $S_i$, an observation is solely dependent on the emission distribution.
+For $S_2 = F$, the velocity $v_2$ is evaluated using $\mathcal{N}(\mu_F=0.8, \sigma_F^2=0.25^2)$, independent of $v_1$.
+However, the preceding velocities implicitly influence the current state.
+As a result, observed velocities may be time-dependent overall, even though they are modeled independently for a given sequence of states.
+
+One can evaluate a given state-sequence $s$ by multiplying the start probability alternatingly with the respective transition probabilities and emission densities.
+\[
+        p(s_{1:n},v_{1:n})
+        =
+        \pi_{s_1}f_{s_1}(v_1)
+        \prod_{i=2}^{n}
+        A_{s_{i-1},s_i}f_{s_i}(v_i).
+\]
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\parbox{0.9\textwidth}{
+        \textbf{Grafikplatzhalter: HMM entlang der Zeit}\\
+        Obere Zeile: verborgene Zustände $S_1,S_2,S_3$
+        mit horizontalen Übergangspfeilen.\\
+        Untere Zeile: beobachtete Geschwindigkeiten
+        $v_1,v_2,v_3$ mit jeweils einem Pfeil vom
+        zugehörigen Zustand zur Beobachtung.\\
+        Übergangspfeile mit $A_{s_{i-1},s_i}$ und
+        Emissionspfeile mit $f_{s_i}(v_i)$ beschriften.
+    }}
+    \caption{Temporal dependence structure of the hidden states and observations.}
+    \label{fig:hmm-temporal-structure}
+\end{figure}
+
+
+For our example trajectory and a sequence $s=(R,R,R,F,T)$ this formular evaluates to:
+
+\[
+\begin{aligned}
+p(s,v)
+={}&
+\underbrace{0{,}6}_{\text{Start in R}}
+\cdot
+\underbrace{4{,}9868}_{v_1=0{,}2\text{ under R}}\\
+&\cdot
+\underbrace{0{,}90}_{R\rightarrow R}
+\cdot
+\underbrace{0{,}2191}_{v_2=0{,}4\text{ under R}}\\
+&\cdot
+\underbrace{0{,}90}_{R\rightarrow R}
+\cdot
+\underbrace{4{,}9868}_{v_3=0{,}2\text{ under R}}\\
+&\cdot
+\underbrace{0{,}09}_{R\rightarrow F}
+\cdot
+\underbrace{1{,}5958}_{v_4=0{,}8\text{ under F}}\\
+&\cdot
+\underbrace{0{,}05}_{F\rightarrow T}
+\cdot
+\underbrace{0{,}9974}_{v_5=2{,}0\text{ under T}}\\
+\approx{}&0{,}018965.
+\end{aligned}
+\]
+Looking at an alternative sequence \(
+s'=(R,F,R,F,T)
+\), where $S_2$ with $v_2 = 0.4 m/s$ is assigned the state $F$, whose emission density is higher than for $R$, we get the transitions  \(R\rightarrow F\rightarrow R\).
+Since all other factors coincide between s and s', we can evaluate s' via
+\[
+\frac{p(s,v)}{p(s',v)}
+=
+\underbrace{\frac{0{,}90\cdot0{,}90}
+{0{,}09\cdot0{,}05}}_{\text{Übergänge: Faktor }180}
+\cdot
+\underbrace{\frac{0{,}2191}{0{,}4437}}_{\text{Emission: Faktor }0{,}494}
+\approx88{,}9.
+\]
+As a consequence, the sequence $s$ without the alternation to the foraging state is around 89 times more likely, even though a velocity of $0.4 m/s$ generally rather indicates a foraging state.
+This example underlines the strength of Hidden Markov Models compared to simple velocity thresholds, namely that HMM takes into account a combination of observations and their temporal context.
+
+For our example trajectory with five fixes and three states, there are a total of $3^5=243$ possible sequences.
+Summing over all possible sequences, we get
+\[
+p(v)=\sum_s p(s,v)\approx0{,}020580.
+\]
+Thus, the conditional probability of the best complete sequence is
+\[
+P(S_{1:5}=(R,R,R,F,T)\mid v)
+=
+\frac{0{,}018965}{0{,}020580}
+\approx92{,}15\,\%.
+\]
+
+\paragraph{Viterbi and A-posteriori}
+For a trajectory with $T$ movement observations and $K$ assumed states, calculating all $T^n$ possible sequence probabilities can become computationally expensive very fast.
+The Viterbi algorithm is based on the idea that two subsequences ending in the same state have the same possibilities for the remaining course of the trajectory.
+This is due to the Markov assumption that the next state only depends on the current state.
+
+If one of the subsequences already has a worse evaluation, it cannot become better than the other.
+Therefore, it is sufficient to keep the best partial sequence so far for each possible final state at each time step.
+At the end, the best complete sequence is traced back through the stored predecessors using dynamic programming.
+
+\begin{algorithm}[htbp]
+\caption{Viterbi decoding}
+\label{alg:viterbi}
+\begin{algorithmic}[1]
+\Require Observations $\mathbf y_{1:T}$, states $\mathcal S$,
+         initial distribution $\pi$, transition matrix $A$,
+         emission densities $f_s$
+\Ensure Most probable state sequence $\hat s_{1:T}$
+
+\ForAll{$s\in\mathcal S$}
+    \State $\delta_1(s)\gets\pi_s f_s(\mathbf y_1)$
+\EndFor
+
+\For{$t=2,\ldots,T$}
+    \ForAll{$s\in\mathcal S$}
+        \State $\psi_t(s)\gets
+        \operatorname*{arg\,max}_{r\in\mathcal S}
+        \delta_{t-1}(r)A_{r,s}$
+        \label{line:viterbi-predecessor}
+        \State $\delta_t(s)\gets
+        \delta_{t-1}(\psi_t(s))
+        A_{\psi_t(s),s}f_s(\mathbf y_t)$
+    \EndFor
+\EndFor
+
+\State $\hat s_T\gets
+\operatorname*{arg\,max}_{s\in\mathcal S}\delta_T(s)$
+
+\For{$t=T-1,\ldots,1$}
+    \State $\hat s_t\gets\psi_{t+1}(\hat s_{t+1})$
+    \label{line:viterbi-backtracking}
+\EndFor
+
+\State \Return $\hat s_{1:T}$
+\end{algorithmic}
+\end{algorithm}
+The procedure detailed in \Cref{alg:viterbi} uses a $K\times T$ dimensional array $\delta$, where $\delta_t(s)$ stores the joint density of the best partial state sequence $s_{1:t}$ ending in state $s$ and the observations $\mathbf y_{1:t}$.
+For the first observation, $\delta$ is initialized with the initial-state probability $\pi_s=P(S_1=s)$ multiplied with the first observation's emission density $f_s(\mathbf y_1)=p(\mathbf y_1\mid S_1=s)$.
+Additionally, a $K\times T$ dimensional array $\psi$ is maintained to keep track of the best preceding state up to time $t$ for the current state ending in $s$.
+
+For the remainder of the trajectory ($t=2,\ldots,T$), $\psi$ is updated for each state $s$ with the state maximizing
+the evaluation for $t$ when transitioning from a state $r$ at $t-1$ to $s$ by multiplying the best evaluation $delta_{t-1}$ with the transition probability $A_{r,s}P(S_t=s\mid S_{t-1}=r)$ (line~\ref{line:viterbi-predecessor}).
+The selected partial subsequence $\delta_t(s)$ is then extended by the current observation for each state $s$ using the best evaluation of the best predecessor of $s$ at $t - 1$ multiplied with the product
+of that predecessor's transition probability to $s$ and the emission density evaluated at $\mathbf{y}_t$.
+This combines the best preceding evaluation with the transition probability into
+$s$ and the emission density of the current observation.
+Finally, the best end state is extracted from $\delta_t(s)$, and the entire path is reconstructed backwards using the predecessor array $\psi$ (line~\ref{line:viterbi-backtracking}).
+
+For each of the $T$ observations, $K$ possible end states with $K$ predecessors are considered, resulting in a time complexity of $\mathcal{O}(TK^2)$.
+
+In the context of HMM, the $\textbf{A-posteriori}$ probability \(\gamma_i(s)=P(S_i=s\mid\mathbf y_{1:T})\) represents how likely the assignment of state $s$ for a step $i$ is under consideration of the entire
+observation sequence.
+For each step, $\gamma$ stands for a probability distribution over all states, such that \(\sum_s\gamma_i(s)=1\).
+As a result, A-posteriori probabilities inform us about the ambiguity of specific state assignments.
+While Viterbi outputs the most likely complete state sequence, A-posteriori describes the uncertainty of associated with individual states.
+Therefore, the most likely state for a step i under A-posteriori does not necessarily coincide with Viterbi-Labels calculated using \Cref{alg:viterbi}.
+We will be using A-posteriori probabilities to assign states to identified segments in our Hybrid approach detailed in \Cref{sec:pelt-hmm}.
+
+\paragraph{Multiple Features and Gaussian HMM}
+In our application, we combine multiple features.
+A common set of features for behavioral state annotations using animal trajectories is speed and turning angle.
+In this configuration, each state has a mean vector and a covariance matrix.
+\[
+\boldsymbol\mu_s=
+\begin{pmatrix}
+\mu_{s,v}\\
+\mu_{s,\theta}
+\end{pmatrix},
+\qquad
+\Sigma_s=
+\begin{pmatrix}
+\sigma_{s,v}^{2} & 0\\
+0 & \sigma_{s,\theta}^{2}
+\end{pmatrix}.
+\]
+The mean values in $\mu_s$ denote typical speed values and direction changes for a state $s$.
+The diagonal entries of $\sigma_s$ represent the respective variances per feature.
+Entries outside the diagonal represent the covariance between different features.
+
+We use Gaussian HMM with diagonal covariance matrices, resulting in independence of features.
+Therefore, the common emission density for a step $i$, given $v_i$ and $\theta_i$ simplifies to
+\[
+f_s(v_i,\theta_i)
+=
+\mathcal N(v_i;\mu_{s,v},\sigma_{s,v}^{2})
+\cdot
+\mathcal N(\theta_i;\mu_{s,\theta},\sigma_{s,\theta}^{2}).
+\]
+For example, a state like foraging may prefer low speeds and large changes in direction.
+Within this state, however, the modeled angular distribution does not additionally depend on the speed that was just observed.
+
+\subsection{PELT-Based Segmentation and Segment Clustering}
+\label{subsec:pelt}
+Our second data-driven segmentation approach is inspired by Behavioral Change Point Analysis (BCPA) and aims to identify
+multiple change points, where the statistical properties of the selected feature differ significantly.
+At first, temporal boundaries are identified, resulting in a set of segments, where the properties within a segment are homogonous but differ between segments.
+Subsequently, these segments are grouped, given a user-input number of states, such that segments displaying similar characteristics
+are assigned the same state.
+
+\paragraph{Penalized Segmentation}
+The PELT (Pruned Exact Linear Time) algorithm uses dynamic programming to find the optimal segmentation of a time-series.
+Given, a series of observations $\mathbf{y}_{1:T}$, PELT identifies changepoints $0=\tau_0<\tau_1<\cdots<\tau_m=T$, where segment
+$j$ contains the observations $\mathbf y_{\tau_{j-1}+1:\tau_j}$.
+
+The algorithm minimizes a total cost
+ \[
+       \textsc{TotalCost} = \min_{\tau_1,\ldots,\tau_{m-1}}
+        \left[
+            \sum_{j=1}^{m}
+            C\!\left(
+                \mathbf y_{\tau_{j-1}+1:\tau_j}
+            \right)
+            +\beta(m-1)
+        \right].
+    \]
+consisting of the sum of the costs for each segment ($C$) and a penalty ($\beta$) for each change point introduced.
+Thus, introducing a new change point pays off if the reduction in segment costs outweighs the additional penalty.
+Larger $\beta$ values encourage fewer, longer segments, where the algorithm requires larger changes in the data to justify adding boundaries.
+A low penalty favors a fine partition, where subtle changes can create new segments, however at the risk of overfitting and misinterpreting noise as change points.
+Additionally, a minimum allowable number of fixes per segment can be configured to ensure segments are not too small.
+
+\paragraph{RBF segment cost}
+Depending on the application, several segment cost functions $C_{a:b}$ can be considered.
+A simple example is the L2-cost function
+\[
+    C(y_{a:b}) = \sum_{j=1}^{m}\sum_{i=a}(y_{j,i} - \text{mean}(y_{d,a:b}))^2,
+\]
+measuring the within segment sum of square deviations from the segment mean.
+Given that deviations from the mean are squared, the L2 function is highly sensitive to changes in the mean and outliers and therefore performs best in applications,
+where observations withing a segment are normally distributed around the mean.
+
+A more suitable similarity measure for our application is the Radial-Basis-Function-Kernel\[
+        k(\mathbf y_i,\mathbf y_j)
+        =
+        \exp\!\left(
+            -\gamma
+            \lVert\mathbf y_i-\mathbf y_j\rVert^2
+        \right).
+    \].
+Similar feature vectors are assigned a score near one, while dissimilar ones evaluate to zero.
+The parameter $\gamma$ defines the scale on which feature differences become relevant and is determined via the following median heuristic.
+At first, the squared pair-wise distances of all the different observations are calculated:
+\[
+d_{ij}^{2}=\lVert\mathbf y_i-\mathbf y_j\rVert^2,
+\qquad i<j.
+\]
+
+Then, the median is calculated from these values and $\gamma$ is set to $\gamma = 1 / M$.
+Consequently, a pair with a squared distance of $M$ results in a similarity of \(
+k=\exp(-\gamma M)=\exp(-1)\approx0{,}368.
+\), meaning the comparison scale automatically adjusts to the observed differences in characteristics.
+A common $\gamma$ value is determined for the entire trajectory so that segment costs are compared on the same scale.
+
+The segment costs are described as variance in the feature space induced by the kernel $\textbf{k}$ as:
+\[
+        C(I)
+        =
+        \sum_{i\in I}k(\mathbf y_i,\mathbf y_i)
+        -
+        \frac{1}{|I|}
+        \sum_{i,j\in I}k(\mathbf y_i,\mathbf y_j).
+    \]
+The first term simplifies to $n$, as every observation has a self-similarity of one.
+Thus, $C(I)$ can be re-written as
+\[
+C(I)=n\left(1-\overline{k}_I\right),
+\qquad
+\overline{k}_I=
+\frac1{n^2}\sum_{i,j\in I}k(\mathbf y_i,\mathbf y_j).
+\]
+Here, $\overline{k}_I$ describes the average pair-wise similarity.
+If all observations are identical, $\overline{k}_I=1$ and therefore $C(I)=0$.
+With varying observations, the average similarity sinks and the costs increase.
+Multiplying with $n$ turns average similarity within a segment to a global segment cost.
+
+\paragraph{Grouping segments into movement states}
+After identifying homogonous segments, we now need to group them into behavioral states.
+At first, means, standard deviations and medians are calculated for each segment.
+After that, these statistics are combined into a feature vector $q_j$, describing the typical motion characteristics of the segment $j$.
+Given a desired number of states $K$, segments are grouped using $K$-means clustering on the standardized feature vectors.
+$K$-means represents every cluster through a centroid and minimizes the within-cluster mean distances of segment's feature vectors to the assigned centroids.
+
+Optionally, the clusters' centroids can be ordered by speed to assign biological interpretations like resting, foraging and traveling to the different states.
+
+\subsection{PELT-HMM Hybrid segmentation}
+\label{subsec:pelt-hmm-hybrid-segmentation}
+The hybrid uses the PELT algorithm to identify temporal boundaries and Gaussian HMM to identify the state of each segment.
+The HMM is fitted on the full prepared feature sequence, using the same fitting process as the standalone HMM.
+There are two modes for state identification:
+The first one uses A-posteriori probabilities, such that the state $\hat{s}_j$ maximizing the within segment sum of A-posteriori probabilities is assigned
+to that segment
+\[
+\hat s_j=\arg\max_s\sum_{i\in I_j}
+P(S_i=s\mid Y_{1:n},\hat\theta).
+\]
+The posterior probability $P(S_i=s\mid Y_{1:n},\hat\theta)$
+describes the probability of the hidden state at observation
+$i$ being $s$, given the entire observation sequence.
+Its sum over a segment therefore measures the expected
+number of observations belonging to state $s$ within that segment.
+Thus, choosing the largest sum selects the constant segment label with the greatest expected number of matching point states under those marginal probabilities.
+
+Alternatively, states can be assigned using a majority vote over the Viterbi labels within each segment:
+\[
+    \hat s_j
+    =
+    \operatorname*{arg\,max}_s
+    \sum_{i\in I_j}
+    \mathbf{1}\!\left\{\hat s_i^{\mathrm{Vit}}=s\right\},
+\]
+where $\hat s_i^{\mathrm{Vit}}$ denotes the state at
+observation $i$ in the Viterbi-decoded sequence, and
+$\mathbf{1}\{\cdot\}$ equals one if its condition holds
+and zero otherwise.
+
+\section{Criteria-Based Segmentation}
+\label{sec:crit-segmentation}
+
+\paragraph{Problem formulation}
 
 \begin{itemize}
-  \item Candidate features implemented in \code{hmmcma}: speed, distance, turning angle, absolute direction, angular difference, persistence velocity, and terrain.
-  \item Compute features only after ordering observations and projecting distances into metres.
-  \item Mark the first point after every gap as lacking a valid incoming step where appropriate.
-  \item Handle angle wrapping explicitly and avoid imputing undefined turn angles as ordinary zero values.
-  \item Standardization parameters must be fitted on the intended training subset to prevent leakage into held-out interpolation experiments.
+    \item Definition von Bewegungsphasen durch explizite
+    räumliche, zeitliche oder bewegungsbezogene Kriterien.
+    \item Vorgabe der gewünschten Eigenschaften durch
+    den Anwender, beispielsweise begrenzte räumliche
+    Ausdehnung oder geringe Variation der Bewegungsrichtung.
+    \item Betrachtung einer Trajektorie $\tau$ mit
+    zeitgestempelten Positionen $(x_i,y_i,t_i)$,
+    indiziert von $0$ bis $n$.
+    \item Bezeichnung der Teiltrajektorie von Index $i$
+    bis einschließlich Index $j$ als $\tau[i,j]$.
+    \item Ein Kriterium $C$ ordnet jedem Kandidatensegment
+    einen Wahrheitswert $C(i,j)$ zu und bezeichnet
+    $\tau[i,j]$ als gültig, wenn die Bedingung erfüllt ist.
+    \item Gesucht ist eine Partition
+    $\tau[s_0,s_1],\ldots,\tau[s_{k-1},s_k]$
+    mit $0=s_0<\cdots<s_k=n$, deren Segmente
+    das Kriterium erfüllen.
+    \item Aufeinanderfolgende Segmente teilen ihren
+    Grenzpunkt, besitzen jedoch disjunkte Innere.
+    \item Optimierungsziel ist die minimale Segmentzahl
+    $k$, sodass die geforderten Eigenschaften mit
+    möglichst wenigen Unterteilungen beschrieben werden.
 \end{itemize}
 
-\section{Criteria-based segmentation}
-\label{sec:criteria-based-segmentation}
+
+\paragraph{Criteria and monotonicity}
 
 \begin{itemize}
-  \item Use the stable-criteria framework of \textcite{alewijnse2014segmentation} as the principal reference for rule-based segmentation.
-  \item Implemented predicates include:
-  \begin{itemize}
-    \item containment in a disk with a radius in metres;
-    \item minimum or maximum hop counts;
-    \item minimum duration;
-    \item speed, turning-angle, and heading ranges;
-    \item outlier-tolerant variants and Boolean combinations.
-  \end{itemize}
-  \item Named rules such as resting, traveling, and foraging produce both \code{segment\_name} and a numeric \code{state} compatible with downstream components.
-  \item Unclassified or invalid points retain an explicit sentinel state rather than being silently reassigned.
-  \item Final thesis description should map every exposed MoveApps rule to its ecological interpretation, unit, and failure case.
+    \item Ein \emph{decreasing monotone criterion} bleibt
+    bei der Einschränkung auf beliebige Teilsegmente
+    eines gültigen Segments erfüllt.
+    \item Beispiel eines Geschwindigkeitskriteriums:
+    Beschränkung der Differenz zwischen größter und
+    kleinster Geschwindigkeit innerhalb eines
+    Segments auf einen Wert $\alpha_v$.
+    \item Diese Spannweitenbedingung beschreibt
+    Geschwindigkeitshomogenität und keine obere
+    Schranke für die Geschwindigkeit selbst.
+    \item Das \emph{angular range criterion} beschränkt
+    den kleinsten Kreisbogen, der alle relevanten
+    Richtungswerte eines Segments enthält.
+    \item Das \emph{disk criterion} verlangt, dass
+    sämtliche Positionen des Segments von einer
+    Kreisscheibe mit vorgegebenem Radius $r$
+    überdeckt werden können.
+    \item Für ausschließlich decreasing monotone
+    Kriterien liefert die Greedy-Strategie eine
+    optimale Segmentierung, indem jeweils das
+    längste gültige Segment gewählt wird.
+    \item Ein \emph{increasing monotone criterion}
+    bleibt dagegen bei der Erweiterung eines
+    gültigen Segments erhalten, beispielsweise
+    eine Mindestdauer.
+    \item Konjunktion und Disjunktion decreasing
+    monotone Kriterien bleiben decreasing monotone;
+    entsprechend gilt dies für increasing
+    monotone Kriterien.
+    \item Kombinationen beider Arten sind im Allgemeinen
+    weder decreasing noch increasing monotone,
+    weshalb Greedy keine allgemeine Lösung liefert.
+    \item Beispielsweise kann ein möglichst langes
+    erstes Segment einen verbleibenden Rest erzeugen,
+    der eine geforderte Mindestdauer nicht mehr erfüllt.
 \end{itemize}
 
-\section{Data-driven alternatives}
+% Grafikidee:
+% Gegenüberstellung einer Greedy-Partition mit ungültigem
+% Restsegment und einer gültigen alternativen Partition.
+% Orientierung: Vorlesung, PDF-S. 34; Paper, Abschnitt 2.
+% Für ein eigenes Zahlenbeispiel Rand- und Dauerbedingungen
+% ausdrücklich festlegen.
+
+
+\paragraph{Start-stop diagram}
 
 \begin{itemize}
-  \item \textbf{HMM:} infer a latent state sequence from selected movement features and temporal state persistence.
-  \item \textbf{BCPA:} identify change points in movement characteristics and cluster the resulting phases.
-  \item \textbf{BCPA--HMM hybrid:} use BCPA boundaries but assign one HMM state to each segment through posterior-probability sums or majority vote.
-  \item Common output contract: \code{state}, \code{cluster}, \code{segment\_id}, \code{change\_point}, selected feature columns, metrics, and mapping metadata.
-  \item Diagnostics: state counts, segment lengths, transition counts, change-point counts, feature summaries, coverage, convergence, and sensitivity to initialization.
+    \item Darstellung aller Kandidatensegmente im
+    \emph{start-stop diagram} $D$.
+    \item Die horizontale Koordinate $i$ beschreibt
+    den Startindex und die vertikale Koordinate $j$
+    den Endindex des Segments $\tau[i,j]$.
+    \item Betrachtung des dreieckigen Bereichs
+    $0\leq i\leq j\leq n$.
+    \item Ein Eintrag gehört zum \emph{free space},
+    wenn $C(i,j)$ erfüllt ist, andernfalls zum
+    \emph{forbidden space}.
+    \item Eine Segmentierung entspricht einer
+    \emph{staircase}, deren Segmentendpaare
+    $(s_{\ell-1},s_\ell)$ im free space liegen
+    und über die gemeinsame Diagonale verbunden werden.
+    \item Die Suche nach einer minimalen Segmentierung
+    entspricht damit der Suche nach einer
+    \emph{min-link staircase}.
 \end{itemize}
 
-\section{Interpretation and method comparison}
+% Grafikidee:
+% Links eine kurze Trajektorie mit Segmentgrenzen,
+% rechts das zugehörige Start-Stop-Diagramm.
+% Gültige Einträge weiß, ungültige grau und die
+% gewählte Staircase farbig darstellen.
+% Orientierung: Vorlesung, PDF-S. 36--40;
+% Paper, Abbildung 3.
+
+
+\paragraph{Computing an optimal segmentation}
 
 \begin{itemize}
-  \item Follow the methodological warning of \textcite{gurarie2016behaviour}: different tools expose different structures because they ask different questions and encode different assumptions.
-  \item Do not interpret numerical HMM state order as an ecological label.
-  \item Compare methods by:
-  \begin{itemize}
-    \item stability under resampling and parameter changes;
-    \item separation of speed, persistence, and turning features;
-    \item segment duration and fragmentation;
-    \item sufficient step counts for fitting downstream kernels;
-    \item held-out performance of the complete workflow.
-  \end{itemize}
-  \item Candidate evidence:
-  \begin{itemize}
-    \item \code{/home/omar/Desktop/MSc Thesis/segmentation/segmentation\_comp.png};
-    \item \code{/home/omar/Desktop/bcpa\_segmentation.png};
-    \item generated HMM, BCPA, hybrid, and criteria artifacts under \code{RW-Python-gitlab/tests/}.
-  \end{itemize}
+    \item Nutzung der optimalen Teilstruktur:
+    Eine optimale Segmentierung von $\tau[0,i]$
+    besteht aus einer optimalen Segmentierung
+    von $\tau[0,j]$ und einem gültigen letzten
+    Segment $\tau[j,i]$.
+    \item Speicherung der besten bisherigen Lösung
+    in einer Tabelle $S[0..n]$ mit den Feldern
+    \texttt{count} und \texttt{last}.
+    \item $S[i].\mathrm{count}$ beschreibt die minimale
+    Segmentzahl für $\tau[0,i]$, während
+    $S[i].\mathrm{last}$ den Startindex des
+    letzten Segments speichert.
+    \item Initialisierung mit
+    $S[0].\mathrm{count}=0$ und Berechnung durch
+    \[
+        S[i].\mathrm{count}
+        =
+        1+
+        \min_{\substack{0\leq j<i\\C(j,i)}}
+        S[j].\mathrm{count}.
+    \]
+    \item Speicherung eines minimierenden Index
+    $j$ in $S[i].\mathrm{last}$ und anschließende
+    Rückverfolgung ab dem letzten Trajektorienindex.
+    \item Existiert kein gültiger erreichbarer
+    Vorgänger, bleibt der Eintrag bei $\infty$.
+    \item Die einfache Variante betrachtet alle
+    gültigen Startindizes einzeln und benötigt
+    bei vorliegendem Start-Stop-Diagramm
+    $\mathcal O(n^2)$ Zeit.
 \end{itemize}
+
+
+\paragraph{Stable criteria and compressed diagrams}
+
+\begin{itemize}
+    \item Verallgemeinerung monotoner Kriterien
+    durch die Klasse der \emph{stable criteria}.
+    \item Für einen festen Endindex $i$ bezeichnet
+    $v(i)$ die Zahl der Gültigkeitswechsel entlang
+    der Kandidatensegmente
+    $\tau[0,i],\tau[1,i],\ldots,\tau[i-1,i]$.
+    \item Ein Kriterium ist stabil, wenn insgesamt
+    nur linear viele solcher Wechsel auftreten:
+    \[
+        \sum_{i=0}^{n}v(i)=\mathcal O(n).
+    \]
+    \item Decreasing und increasing monotone
+    Kriterien sind stabil; auch ihre Konjunktionen,
+    Disjunktionen und Negationen bleiben stabil.
+    \item Kompression des Start-Stop-Diagramms durch
+    zeilenweises \emph{run-length encoding}.
+    \item Zusammenhängende Folgen gültiger Einträge
+    bilden \emph{blocks}, ungültige Folgen
+    bilden \emph{gaps}.
+    \item Bei decreasing monotone Kriterien folgen
+    für einen festen Endindex auf einen optionalen
+    gap die gültigen Startindizes als ein block;
+    bei increasing monotone Kriterien ist die
+    Reihenfolge umgekehrt.
+    \item Stabile Kriterien ermöglichen insgesamt
+    eine Darstellung mit $\mathcal O(n)$ blocks
+    und gaps anstelle sämtlicher quadratisch
+    vieler Einträge.
+    \item Konjunktion entspricht dem Schnitt
+    der freien Bereiche, Disjunktion ihrer
+    Vereinigung und Negation dem Vertauschen
+    von free und forbidden space.
+\end{itemize}
+
+
+\paragraph{Efficient construction and range queries}
+
+\begin{itemize}
+    \item Für decreasing monotone Kriterien
+    Bestimmung des frühesten gültigen Starts
+    zu jedem Endindex mit
+    \texttt{ComputeLongestValid}.
+    \item Verschiebung zweier Zeiger über die
+    Trajektorie, ohne bereits betrachtete
+    Startpositionen für jedes Ende neu zu durchsuchen.
+    \item Pflege einer kriterienspezifischen
+    Datenstruktur mit den Operationen
+    \emph{isValid}, \emph{extend} und
+    \emph{shorten}.
+    \item Bei Aktualisierungs- und Abfragekosten
+    $c(n)$ ergibt sich ein Aufwand von
+    $\mathcal O(nc(n))$ für dieses Verfahren.
+    \item Beschleunigung der anschließenden
+    dynamischen Programmierung durch gemeinsame
+    Verarbeitung eines ganzen blocks gültiger
+    Startindizes.
+    \item Ersetzung der einzelnen Tabellenabfragen
+    durch eine Bereichsanfrage nach dem kleinsten
+    bisherigen \texttt{count} innerhalb des blocks.
+    \item In der Vorlesung Verwendung eines
+    augmentierten balancierten Suchbaums $T$,
+    dessen Knoten \texttt{index}, \texttt{last}
+    und \texttt{count} sowie das Minimum
+    im jeweiligen Teilbaum speichern.
+    \item Bearbeitung einer Bereichsanfrage in
+    $\mathcal O(\log n)$ und damit Berechnung
+    der optimalen Segmentierung in
+    $\mathcal O(n\log n)$ aus einem komprimierten
+    Diagramm mit linear vielen blocks.
+    \item Für die im Framework effizient
+    konstruierbaren stabilen Kriterien ergibt
+    sich einschließlich der Diagrammkonstruktion
+    eine Gesamtlaufzeit von
+    $\mathcal O(n\log n)$.
+\end{itemize}
+
+% Grafikidee:
+% Eine Zeile des komprimierten Start-Stop-Diagramms
+% mit einem gültigen block markieren und daneben
+% die Bereichsanfrage auf bisherige count-Werte zeigen.
+% Orientierung: Vorlesung, PDF-S. 43 und 50.
+
+
+\paragraph{Segmentation by movement states}
+
+\begin{itemize}
+    \item Beschreibung jedes Bewegungszustands
+    durch ein eigenes Kriterium $C_\ell$.
+    \item Segmentierung anhand der Disjunktion
+    $C=C_1\lor\cdots\lor C_K$, sodass jedes
+    gültige Segment mindestens eine
+    Zustandsdefinition erfüllt.
+    \item Zuordnung des Labels des ausgewählten
+    Kriteriums zum jeweiligen Segment.
+    \item Beispiel aus der Gänsemigration:
+    Beschreibung eines stopover durch das
+    disk criterion in Verbindung mit einer
+    Mindestdauer.
+    \item Beschreibung von migration flight
+    durch eine begrenzte angular range
+    der Bewegungsrichtung.
+    \item Direkte Zustandszuweisung aus den
+    vorgegebenen Kriterien, ohne nachgelagertes
+    Clustering der Segmentmerkmale.
+    \item Mehrere Partitionen können dieselbe
+    minimale Segmentzahl besitzen und sich
+    dennoch in ihren Grenzpositionen unterscheiden.
+    \item Verwendung zustandsabhängiger
+    \emph{tie-breaking rules}, beispielsweise
+    möglichst lange stopovers und möglichst
+    kurze flight-Segmente.
+    \item Diese Präferenzen entscheiden zwischen
+    gleich guten Lösungen und ersetzen nicht
+    das primäre Ziel der minimalen Segmentzahl.
+\end{itemize}
+
+
+\paragraph{Application in the pipeline}
+
+\begin{itemize}
+    \item Definition gelabelter Regeln aus
+    zeitlichen und geometrischen Kriterien
+    sowie deren Booleschen Kombinationen.
+    \item Verwendung von Bedingungen an die
+    Schrittzahl, Mindestdauer, räumliche
+    Begrenztheit sowie Geschwindigkeits-
+    und Winkelspannweiten.
+    \item Optionale Toleranz gegenüber einer
+    vorgegebenen Anzahl von Ausreißern,
+    ohne entsprechende Beobachtungen
+    aus der Trajektorie zu entfernen.
+    \item Dokumentation der verwendeten
+    Schwellwerte und Tie-Breaking-Präferenzen,
+    da diese die Segmentgrenzen und
+    Zustandszuordnung bestimmen.
+    \item Zusammenführung der Displacements
+    gleich gelabelter Segmente zur Schätzung
+    zustandsabhängiger Übergangskerne.
+\end{itemize}
+
+\section{Segmentation Benchmark}
+\label{sec:seg-benchmark}
+
+
+% Literaturhinweise; BibTeX-Schlüssel erst an die vorhandene Datenbank anpassen.
+% HMM: Rabiner (1989), doi:10.1109/5.18626.
+% Movement-HMM: Michelot, Langrock & Patterson (2016),
+% doi:10.1111/2041-210X.12578.
+% Original BCPA: Gurarie, Andrews & Laidre (2009),
+% doi:10.1111/j.1461-0248.2009.01293.x.
+% PELT: Killick, Fearnhead & Eckley (2012),
+% doi:10.1080/01621459.2012.737745.
+% Kriterienframework: Alewijnse et al. (2014),
+% doi:10.1145/2666310.2666415.
+% Primärdokumentation für verwendete Abhängigkeiten:
+% https://hmmlearn.readthedocs.io/en/stable/tutorial.html
+% https://centre-borelli.github.io/ruptures-docs/user-guide/costs/costrbf/
+% https://centre-borelli.github.io/ruptures-docs/code-reference/detection/pelt-reference/
+% https://cran.r-project.org/web/packages/bcpa/refman/bcpa.html
+% https://scikit-learn.org/stable/modules/model_evaluation.html
+% https://scikit-learn.org/stable/modules/cross_validation.html
