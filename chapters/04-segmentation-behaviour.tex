@@ -453,7 +453,7 @@ and zero otherwise.
 In criteria-based segmentation, movement phases in a trajectory are defined based on explicit spatial, temporal, or movement-related criteria.
 The user defines characteristics such as limited spatial extent for resting, or low variation in movement direction for traveling.
 Regarding a trajectory $\tau$ with time-stamped positions $(x_i, y_i, t_i)\, i \in \{1,  \ldots, n\}$ and a criterion $C$,
-a subtrajectory $\tau[i, j]$ is valid under $C$, if $C(i,j)$ evaluates to true.
+a subtrajectory $\tau[i, j]$ is \emph{valid} under $C$, if $C(i,j)$ evaluates to true.
 
 Criteria need to be defined per desired state.
 The objective is to find the minimum number of segments $\tau[s_0, s_1], \ldots, \tau[s_{k-1}, s_k]$ with $0 = s_0 < \cdots < s_k = n$
@@ -510,7 +510,7 @@ The disjunction and conjunction of monotone decreasing criteria is also monotone
 For exclusively decreasing monotone criteria, a Greedy strategy yields the optimal segmentation as follows:
 
 Starting with the first two fixes, a segment $\tau[i, j]$ is extended as long as the criterion $C$ holds.
-The trajectory is cut at the first fix $j' = j + 1$ violating $C$ and the segment $\tau[i, j]$ is reported.
+The trajectory is cut at the first fix $j'$ violating $C$ and the segment $\tau[i, j']$ is reported.
 This process is repeated for the remainder of the trajectory ($\tau[j', n]$) until the the end is reached.
 The end result is a set of segments, each satisfying $C$.
 
@@ -538,10 +538,27 @@ The increasing monotone criteria considered in this work are summarized in \Cref
     \end{tabularx}
 \end{table}
 Like with decreasing monotone criteria, the conjunction and disjunction of increasing monote criteria is also increasing monotone.
-Generally, a combination of increasing and decreasing criteria like staying within a range for 24h is neither increasing nor decreasing monotone.
+Generally, a combination of increasing and decreasing criteria like staying within a spatial range for >24h is neither increasing nor decreasing monotone.
+Their are called \emph{stable} criteria, because the number of validity changes for segment starting at varying start indices $i < j$ for a fixed end index $j$, 
+summed over all end indices $j = 1 \ldots n$ is in the order of $O(n)$.
 Looking at the minimum duration criterion, it becomes evident that the Greedy strategy fails for such criteria, 
 as extending a segment as long as the condition is satisfied, may result in a remainder that is too short to satisfy the condition.
 
+
+\begin{figure}
+    \centering
+    \label{free-space}
+    \includegraphics[width=\textwidth]{figures/chapter04/start-stop-placeholder.png}
+\end{figure}
+
+In these cases, an optimal segmentation can be determined using a start-stop diagram $D$, where the horizontal coordinate represents the start index $i$
+and the vertical coordinate denotes the end index $j$ of a candidate segment.
+An entry $D(i, j)$ belongs to the \emph{free space} if its corresponding segment $\tau[i, j]$ satisfies the criterion, otherwise \emph{forbidden space}.
+A segmentation of a trajectory of size $n$ corresponds to a staircase in the start-stop diagram, originating in cell $(0, 0)$ and ending in $(n, n)$.
+The objective is, to find a \emph{min-link staircase} whose non-diagonal entries lie in the free space.
+
+In their 2014 paper, Buchin et al. presented a framework that uses run-length encoding on the start-stop matrix and range queries using augmented binary-
+search trees to compute the optimal segmentation for \emph{stable criteria} efficiently in $O(n\log n)$ time.
 
 \paragraph{Combining criteria and movement states}
 We define behavioral states through single criteria or the combination of multiple criteria.
@@ -568,75 +585,8 @@ Negations pertain to the entire candidate segment, making the criteria $C_R$, $C
 The three conditions are summarized to $C = C_R \vee C_F \vee C_T$, such that every segment satisfies at least one of the conditions.
 A segment satisfying $C$ is then assigned the corresponding state whose condition holds on it.
 
-\paragraph{Stable criteria}
 
-\begin{itemize}
-    \item Einordnung der verwendeten Kriterienkombinationen
-    in die allgemeinere Klasse der \emph{stable criteria}.
-    \item Betrachtung der Gültigkeitswechsel beim
-    Verschieben des Startindex für einen festen Endindex;
-    ein Kriterium ist stabil, wenn über alle Endindizes
-    insgesamt nur linear viele solche Wechsel auftreten.
-    \item Decreasing und increasing monotone Kriterien
-    sind stabil; diese Eigenschaft bleibt auch bei
-    Konjunktion, Disjunktion und Negation erhalten.
-    \item Damit umfasst das Framework insbesondere
-    Kombinationen wie räumliche Begrenztheit und
-    Mindestdauer, für die die Greedy-Strategie
-    keine allgemeine Lösung liefert.
-\end{itemize}
-
-
-\paragraph{Start-stop diagram}
-
-\begin{itemize}
-    \item Darstellung der Kandidatensegmente im
-    \emph{start-stop diagram} $D$, wobei die horizontale
-    Koordinate den Startindex $i$ und die vertikale
-    Koordinate den Endindex $j$ beschreibt.
-    \item Ein Eintrag $(i,j)$ gehört zum
-    \emph{free space}, wenn $\tau[i,j]$ das Kriterium
-    erfüllt, andernfalls zum \emph{forbidden space}.
-    \item Darstellung einer gültigen Segmentierung
-    als \emph{staircase}, deren Segmentendpaare
-    $(s_{\ell-1},s_\ell)$ im free space liegen
-    und über die gemeinsame Diagonale verbunden werden.
-    \item Bestimmung einer minimalen Segmentierung
-    durch die Suche nach einer \emph{min-link staircase},
-    welche die gesamte Trajektorie abdeckt.
-    \item Bei gleicher minimaler Segmentzahl Verwendung
-    zustandsabhängiger Tie-Breaking-Präferenzen,
-    beispielsweise möglichst lange stopovers
-    und möglichst kurze flight-Segmente.
-    \item Übergabe der resultierenden Segmentlabels
-    an die anschließende Schätzung zustandsabhängiger
-    Übergangskerne.
-\end{itemize}
-
-\paragraph{Application in the pipeline}
-
-\begin{itemize}
-    \item Definition gelabelter Regeln aus
-    zeitlichen und geometrischen Kriterien
-    sowie deren Booleschen Kombinationen.
-    \item Verwendung von Bedingungen an die
-    Schrittzahl, Mindestdauer, räumliche
-    Begrenztheit sowie Geschwindigkeits-
-    und Winkelspannweiten.
-    \item Optionale Toleranz gegenüber einer
-    vorgegebenen Anzahl von Ausreißern,
-    ohne entsprechende Beobachtungen
-    aus der Trajektorie zu entfernen.
-    \item Dokumentation der verwendeten
-    Schwellwerte und Tie-Breaking-Präferenzen,
-    da diese die Segmentgrenzen und
-    Zustandszuordnung bestimmen.
-    \item Zusammenführung der Displacements
-    gleich gelabelter Segmente zur Schätzung
-    zustandsabhängiger Übergangskerne.
-\end{itemize}
-
-\section{Segmentation Benchmark}
+\section{Implementation and Benchmarks}
 \label{sec:seg-benchmark}
 
 
