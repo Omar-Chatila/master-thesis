@@ -1,3 +1,12 @@
+% Überarbeitete Arbeitskopie des vom Nutzer bereitgestellten Kapitels.
+% Original: trajectory_segmentation_chapter_original.tex (inhaltlich unverändert).
+% Ergänzungen: deutsche Stichpunkte an den jeweiligen methodischen Stellen.
+% Benchmarkabschnitte unterscheiden bestehenden Code und geplante Auswertung.
+% Beide Kapiteldateien sind Alternativen und dürfen wegen gleicher Labels
+% nicht gleichzeitig in dasselbe Hauptdokument eingebunden werden.
+% Der aus der Vorlage übernommene Verweis tab:emission-dist wird in diesem
+% Kapitelausschnitt nicht definiert und muss im Hauptdokument aufgelöst werden.
+
 \chapter{Trajectory Segmentation and Behavioral Annotation}
 \label{ch:segmentation}
 The second module of our pipeline aims to identify segments within each trajectory that share similar characteristics.
@@ -17,8 +26,25 @@ Data-driven approaches, such as Hidden Markov Models (HMMs) and Behavioral Chang
 These features are typically calculated for each fix relative to the previous record.
 Therefore, it is important that the trajectory is sampled regularly and coherently, without large gaps, so that missing records are not misinterpreted.
 
-In a preprocessing step, each trajectory is split at observation gaps whose duration exceeds five times the median observation interval.
-These sub-trajectories are handled separately to ensure that unusual transitions are not modeled across long observation gaps, possibly caused by poor GPS reception or other technical issues rather than biological factors.
+\subsection{Sampling-aware feature preparation}
+\label{subsec:seg-preprocessing}
+% Codebasis: preprocessing.py, prepare_trajectory_collection und _sampling_blocks.
+Before calculating features, we identify coherent blocks of approximately constant sampling rate.
+At first, each trajectory is grouped in segments according to their sampling rates within a certain tolerance band.
+The dominant sampling rate $\Delta t_*$ is determined as the median of the largest interval accross all segments of the entire study.
+Then, trajectories are grouped into segments with at least three fixes, where time gaps lie within a 10\% tolerance band around $\Delta t_*$:
+\[
+        |\Delta t_i-\Delta t_b|
+        \leq a+r\Delta t_b,
+        \qquad r=0.1,\quad a=1\,\mathrm{s}.
+\]
+Intervals outside this tolerance band interrupt a segment. 
+The first two fixes of each segment serve as context for feature calculations and are not considered as model input, since displacements and turning angles require one and two preceding steps, 
+respectively.
+Missing observations are left missing, and steps crossing segment boundaries are not considered for the data-driven approaches. 
+
+This way, multiple suitable segments across a study contribute to the estimation of the same motion states. 
+For example, the model can learn from all segments which velocities and angles are typical.
 
 \subsection{Features}
 \label{subsec:features}
@@ -34,28 +60,71 @@ where $\mathbf{x}_i$ denotes the projected position at time $t_i$.
 Our target variable is a number $S_i \in \{1, \ldots K\}$ denoting the behavioral state, where the user-defined variable $K$ stands for the number of expected states.
 
 
+The available movement features are summarized in \Cref{tab:segmentation-features}.
+For the angular features, let $\varphi_i=\operatorname{atan2}(d_{i,x},d_{i,y})$ denote the heading clockwise from north in radians, 
+and let $\operatorname{wrap}$ map angular differences to $[-\pi,\pi)$.
+\begin{table}[htbp]
+    \centering
+    \caption{Movement features available for trajectory segmentation.}
+    \label{tab:segmentation-features}
+    \begin{tabularx}{\textwidth}{@{}lXl@{}}
+        \toprule
+        Feature & Formula & Unit \\
+        \midrule
+        Step length
+            & $\ell_i=\lVert\mathbf d_i\rVert$
+            & $\mathrm{m}$ \\[0.4em]
+        Speed
+            & $v_i=\ell_i/\Delta t_i$
+            & $\mathrm{m}/\mathrm{s}$ \\[0.4em]
+        Direction
+            & $h_i=(180/\pi)\varphi_i\bmod 360$
+            & $ {}^\circ $ \\[0.4em]
+        Signed turning angle
+            & $\theta_i^{\mathrm{sgn}}=\operatorname{wrap}(\varphi_i-\varphi_{i-1})$
+            & $\mathrm{rad}$ \\[0.4em]
+        Turning angle
+            & $\theta_i=|\theta_i^{\mathrm{sgn}}|$
+            & $\mathrm{rad}$ \\[0.4em]
+        Angular difference
+            & $\alpha_i=(180/\pi)|\theta_i^{\mathrm{sgn}}|$
+            & $ {}^\circ $ \\[0.4em]
+        Persistence velocity
+            & $p_i=v_i\cos\theta_i^{\mathrm{sgn}}$
+            & $\mathrm{m}/\mathrm{s}$ \\[0.4em]
+        Turning velocity
+            & $q_i=v_i\sin\theta_i^{\mathrm{sgn}}$
+            & $\mathrm{m}/\mathrm{s}$ \\[0.4em]
+        Acceleration
+            & $a_i=(v_i-v_{i-1})/\Delta t_i$
+            & $\mathrm{m}/\mathrm{s}^2$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
-\begin{itemize}
-    \item Beschreibung der Bewegung durch Merkmale aufeinanderfolgender Displacements
-    wobei $\mathbf{x}_i$ die projizierte Position zum Zeitpunkt $t_i$ bezeichnet.
+Persistence velocity and turning velocity decompose the current velocity vector into its components along and orthogonal to the previous direction, respectively.
+\begin{align}
+    p_i
+    &=
+    \frac{1}{\Delta t_i}\mathbf d_i\cdot
+    \frac{\mathbf d_{i-1}}{\lVert\mathbf d_{i-1}\rVert}
+    =v_i\cos\theta_i^{\mathrm{sgn}} \in [-v_i, v_i]
+    \label{eq:persistence-velocity}\\
+q_i
+    &=
+    \frac{1}{\Delta t_i}\mathbf d_i\cdot
+    \frac{\mathbf d_{i-1}^{\perp}}
+         {\lVert\mathbf d_{i-1}\rVert}
+    =v_i\sin\theta_i^{\mathrm{sgn}}
+    \in[-v_i,v_i].
+    \label{eq:turning-velocity}
+\end{align}
+Here, $p_i$ indicates how strong movement tends to persist from the previous direction, where positive values indicate a continuation and negative values indicate a reversal.
+The turning velocity describes the lateral component to the previous velocity, where positive values correspond to turning in a clockwise direction.
+Absolute directions are represented as $(\sin h_i,\cos h_i)$ pairs, so that angles around the $0^{\circ} / 360^{\circ}$ mark remain adjacent.
+Redundant combinations like step length and speed, as well as more than one representation of the same turning angle or the component pair $(p_i,q_i)$ with additional speed / turning angle feature are rejected,
+so the same information is not weighted multiple times.
 
-    \item Schrittlänge $\ell_i=\lVert\mathbf{d}_i\rVert$ als Maß für die räumliche Ausdehnung eines beobachteten Ortswechsels.
-    \item Geschwindigkeit $v_i=\ell_i/\Delta t_i$ als zeitnormierte Verschiebung zwischen zwei Beobachtungen, ohne Berücksichtigung des tatsächlich zurückgelegten Weges.
-    \item Bewegungsrichtung als absolute Orientierung eines Displacements im projizierten Koordinatensystem.
-    \item Richtungsänderung $\theta_i$ als kleinerer, vorzeichenloser Winkel zwischen aufeinanderfolgenden Displacements, ohne Unterscheidung zwischen Links- und Rechtsdrehungen.
-    \item Persistenzmaß
-    \[
-        p_i=
-        \mathbf{d}_i\cdot
-        \frac{\mathbf{d}_{i-1}}{\lVert\mathbf{d}_{i-1}\rVert}
-        =\ell_i\cos\theta_i
-    \]
-    als Komponente des aktuellen Displacements entlang der vorherigen Bewegungsrichtung.
-    \item Positive Persistenzwerte kennzeichnen eine Fortsetzung der vorherigen Richtung, negative Werte eine entgegengesetzte Bewegungskomponente.
-    \item Optionale Einbeziehung der zuvor annotierten Terrainklasse zur Unterscheidung umgebungsabhängiger Bewegungsmuster.
-    \item Auswahl der Merkmale entsprechend den zu unterscheidenden Bewegungseigenschaften, beispielsweise Bewegungsintensität oder Richtungspersistenz.
-    \item Vermeidung redundanter Merkmale, da Schrittlänge und Geschwindigkeit bei konstantem Beobachtungsintervall dieselbe Information enthalten.
-\end{itemize}
 
 \subsection{Hidden Markov Model}
 \label{subsec:hmm}
@@ -84,7 +153,7 @@ HMM links observable features to a hidden, temporally coherent sequence of state
 \paragraph{Hidden states and state transitions}
 The hidden states $S_i \in \{R, F, T\}$ are modeled as a first-order Markov Chain, meaning that the next state, given a current state, is independent of the preceding states:
 \[
-        P(S_i=F\mid S_{i-1}=R,\ldots,S_T)
+        P(S_i=F\mid S_{i-1}=R,\ldots,S_1)
         =
         P(S_i=F\mid S_{i-1}=R).
 \]
@@ -225,7 +294,7 @@ P(S_{1:5}=(R,R,R,F,T)\mid v)
 \]
 
 \paragraph{Viterbi and A-posteriori}
-For a trajectory with $T$ movement observations and $K$ assumed states, calculating all $T^n$ possible sequence probabilities can become computationally expensive very fast.
+For a trajectory with $T$ movement observations and $K$ assumed states, calculating all $K^T$ possible sequence probabilities can become computationally expensive very fast.
 The Viterbi algorithm is based on the idea that two subsequences ending in the same state have the same possibilities for the remaining course of the trajectory.
 This is due to the Markov assumption that the next state only depends on the current state.
 
@@ -289,7 +358,7 @@ For each step, $\gamma$ stands for a probability distribution over all states, s
 As a result, A-posteriori probabilities inform us about the ambiguity of specific state assignments.
 While Viterbi outputs the most likely complete state sequence, A-posteriori describes the uncertainty of associated with individual states.
 Therefore, the most likely state for a step i under A-posteriori does not necessarily coincide with Viterbi-Labels calculated using \Cref{alg:viterbi}.
-We will be using A-posteriori probabilities to assign states to identified segments in our Hybrid approach detailed in \Cref{sec:pelt-hmm}.
+We will be using A-posteriori probabilities to assign states to identified segments in our Hybrid approach detailed in \Cref{subsec:pelt-hmm-hybrid-segmentation}.
 
 \paragraph{Multiple Features and Gaussian HMM}
 In our application, we combine multiple features.
@@ -324,6 +393,25 @@ f_s(v_i,\theta_i)
 For example, a state like foraging may prefer low speeds and large changes in direction.
 Within this state, however, the modeled angular distribution does not additionally depend on the speed that was just observed.
 
+\subsection{Movement Hidden Markov Model}
+\label{subsec:movement-hmm}
+% Codebasis: movement_hmm.py; feste Emissionsfamilie, keine freie Feature-Liste.
+\begin{itemize}
+    \item Zusätzlich zum Gaussian-HMM implementiert \texttt{MovementHMM} ein HMM für Schrittlänge $\ell_i$ in Metern und signierte Richtungsänderung $\theta_i^{\mathrm{sgn}}$ in Radiant. 
+    Die Merkmalskombination ist fest; weitere Gaussian-Features können diesem Modell nicht beliebig hinzugefügt werden. Die Daten bleiben in physikalischen Einheiten und werden nicht standardisiert.
+    \item Für positive Schrittlängen gilt zustandsabhängig $\ell_i\mid S_i=s,\ell_i>0\sim\operatorname{Gamma}(a_s,b_s)$ mit Formparameter $a_s$ und Skalenparameter $b_s$, also positivem Mittelwert $a_sb_s$. Exakte Nullschritte erhalten optional eine eigene Punktmasse $z_s$; \texttt{zero\_\allowbreak{}inflation=True} ist Standard. Ohne diese Option sind Nullschritte unzulässig und führen zu einer Fehlermeldung.
+    \item Richtungsänderungen folgen einer von-Mises-Verteilung mit zustandsabhängiger, frei geschätzter mittlerer Richtung $\mu_s$ und Konzentration $\kappa_s$. Für einen beobachteten Winkel lautet die Dichte
+    \[
+        g_s(\theta)=\frac{\exp\!\left(\kappa_s\cos(\theta-\mu_s)\right)}{2\pi I_0(\kappa_s)},
+    \]
+    wobei $I_0$ die modifizierte Besselfunktion erster Art der Ordnung null bezeichnet. Kleine Konzentrationen entsprechen breiter Streuung; die Verteilung berücksichtigt die Zirkularität des Winkels.
+    \item Bedingt auf den Zustand werden Schrittlänge und Drehwinkel unabhängig modelliert. Die Schrittemission ist eine gemischte Verteilung aus $P(\ell_i=0\mid S_i=s)=z_s$ und $(1-z_s)$ mal der Gamma-Dichte auf positiven Längen; bei vorhandenen Winkeln wird sie mit $g_s$ multipliziert.
+    \item Besonderheit fehlender Winkel: Die gemeinsame Vorbereitung verlangt hier nur eine endliche Schrittlänge. Ein undefinierter Winkel, etwa am ersten Schritt eines Blocks, nach einem Nullschritt oder bei einer unterschwelligen Richtung, wird über eine Beobachtungsmaske ausmarginalisiert. Sein Emissionsfaktor ist eins; die bekannte Schrittlänge bleibt für Fit und Dekodierung erhalten. Ein interner numerischer Platzhalter bedeutet keine beobachtete Geradeausbewegung. Der erste Fix ohne eingehenden Schritt bleibt unmodelliert.
+    \item Eigener Emissionsschätzer auf Basis von \texttt{hmmlearn.BaseHMM}: Baum--Welch mit posteriorgewichteten Gamma- und zirkulären Statistiken; numerische Nullstellensuche für Gamma-Form und von-Mises-Konzentration. Logarithmische Berechnungen und skalierte Besselfunktionen stabilisieren die Likelihood. Numerische Grenzen: $a_s\in[10^{-3},10^4]$, $b_s\geq10^{-12}$ und $\kappa_s\in[0,10^3]$.
+    \item Initialisierung mit gleichverteilten Startzuständen und $A^{(0)}=0.9I+(0.1/K)\mathbf{1}\mathbf{1}^{\mathsf T}$; Emissionen aus nach Schrittlänge geschichteten, seedabhängig gestörten Gruppen. Mehrere Starts und Auswahl nach höchster endlicher Trainings-Likelihood wie beim Gaussian-HMM; Start- und Übergangswahrscheinlichkeiten werden anschließend mitgeschätzt. Eine stationäre Startverteilung wird nicht erzwungen.
+    \item Abtastratengruppen, Sequenzgrenzen, Zustandsausgabe, Posterioren und Fitdiagnostik folgen der gemeinsamen HMM-Schnittstelle. Die neutrale Zustandsordnung verwendet hier die Schrittlänge. Das Modell kann wegen erhaltener Schritte mit fehlenden Winkeln eine andere Abdeckung als ein Gaussian-HMM mit derselben nominellen Merkmalskombination besitzen.
+\end{itemize}
+
 \subsection{PELT-Based Segmentation and Segment Clustering}
 \label{subsec:pelt}
 Our second data-driven segmentation approach is inspired by Behavioral Change Point Analysis (BCPA) and aims to identify
@@ -352,13 +440,13 @@ consisting of the sum of the costs for each segment ($C$) and a penalty ($\beta$
 Thus, introducing a new change point pays off if the reduction in segment costs outweighs the additional penalty.
 Larger $\beta$ values encourage fewer, longer segments, where the algorithm requires larger changes in the data to justify adding boundaries.
 A low penalty favors a fine partition, where subtle changes can create new segments, however at the risk of overfitting and misinterpreting noise as change points.
-Additionally, a minimum allowable number of fixes per segment can be configured to ensure segments are not too small.
+Additionally, a minimum allowable number of prepared movement observations per segment can be configured to discourage very short segments.
 
 \paragraph{RBF segment cost}
 Depending on the application, several segment cost functions $C_{a:b}$ can be considered.
 A simple example is the L2-cost function
 \[
-    C(y_{a:b}) = \sum_{j=1}^{m}\sum_{i=a}(y_{j,i} - \text{mean}(y_{d,a:b}))^2,
+    C(\mathbf y_{a:b}) = \sum_{i=a}^{b}\lVert\mathbf y_i-\overline{\mathbf y}_{a:b}\rVert^2.
 \]
 measuring the within segment sum of square deviations from the segment mean.
 Given that deviations from the mean are squared, the L2 function is highly sensitive to changes in the mean and outliers and therefore performs best in applications,
@@ -384,7 +472,7 @@ Then, the median is calculated from these values and $\gamma$ is set to $\gamma 
 Consequently, a pair with a squared distance of $M$ results in a similarity of \(
 k=\exp(-\gamma M)=\exp(-1)\approx0{,}368.
 \), meaning the comparison scale automatically adjusts to the observed differences in characteristics.
-A common $\gamma$ value is determined for the entire trajectory so that segment costs are compared on the same scale.
+A common $\gamma$ value is determined for each prepared sequence so that candidate segment costs within that sequence are compared on the same scale.
 
 The segment costs are described as variance in the feature space induced by the kernel $\textbf{k}$ as:
 \[
@@ -409,13 +497,10 @@ With varying observations, the average similarity sinks and the costs increase.
 Multiplying with $n$ turns average similarity within a segment to a global segment cost.
 
 \paragraph{Grouping segments into movement states}
-After identifying homogonous segments, we now need to group them into behavioral states.
-At first, means, standard deviations and medians are calculated for each segment.
-After that, these statistics are combined into a feature vector $q_j$, describing the typical motion characteristics of the segment $j$.
-Given a desired number of states $K$, segments are grouped using $K$-means clustering on the standardized feature vectors.
-$K$-means represents every cluster through a centroid and minimizes the within-cluster mean distances of segment's feature vectors to the assigned centroids.
-
-Optionally, the clusters' centroids can be ordered by speed to assign biological interpretations like resting, foraging and traveling to the different states.
+The detected segments are grouped into recurring movement states.
+Feature means, standard deviations and medians form segment descriptors $\mathbf{z_j}$
+Given a desired number of states $K$, segments are grouped using $K$-means clustering on the standardized descriptors.
+$K$-means represents every cluster through a centroid and minimizes the sum of squared distances of segment descriptors to their assigned centroids.
 
 \subsection{PELT-HMM Hybrid segmentation}
 \label{subsec:pelt-hmm-hybrid-segmentation}
@@ -447,6 +532,7 @@ where $\hat s_i^{\mathrm{Vit}}$ denotes the state at
 observation $i$ in the Viterbi-decoded sequence, and
 $\mathbf{1}\{\cdot\}$ equals one if its condition holds
 and zero otherwise.
+
 
 \section{Criteria-Based Segmentation}
 \label{sec:crit-segmentation}
@@ -510,8 +596,8 @@ The disjunction and conjunction of monotone decreasing criteria is also monotone
 For exclusively decreasing monotone criteria, a Greedy strategy yields the optimal segmentation as follows:
 
 Starting with the first two fixes, a segment $\tau[i, j]$ is extended as long as the criterion $C$ holds.
-The trajectory is cut at the first fix $j'$ violating $C$ and the segment $\tau[i, j']$ is reported.
-This process is repeated for the remainder of the trajectory ($\tau[j', n]$) until the the end is reached.
+When the first extension to a fix $j'$ violates $C$, the last valid segment $\tau[i,j'-1]$ is reported.
+The process is repeated from that segment's endpoint for the remainder $\tau[j'-1,n]$ until the end is reached.
 The end result is a set of segments, each satisfying $C$.
 
 On the other hand, a criterion is called \emph{increasing monotone}, if, whenever it holds on a segment, it also holds on every segment containing it.
@@ -548,7 +634,11 @@ as extending a segment as long as the condition is satisfied, may result in a re
 \begin{figure}
     \centering
     \label{free-space}
-    \includegraphics[width=\textwidth]{figures/chapter04/start-stop-placeholder.png}
+    \IfFileExists{figures/chapter04/start-stop-placeholder.png}{%
+        \includegraphics[width=\textwidth]{figures/chapter04/start-stop-placeholder.png}%
+    }{%
+        \placeholder{Start--stop diagram: add figures/chapter04/start-stop-placeholder.png.}%
+    }
 \end{figure}
 
 In these cases, an optimal segmentation can be determined using a start-stop diagram $D$, where the horizontal coordinate represents the start index $i$
@@ -584,10 +674,178 @@ The traveling state is described as movement in similar directions that does not
 Negations pertain to the entire candidate segment, making the criteria $C_R$, $C_F$ and $C_T$ mutually exclusive.
 The three conditions are summarized to $C = C_R \vee C_F \vee C_T$, such that every segment satisfies at least one of the conditions.
 A segment satisfying $C$ is then assigned the corresponding state whose condition holds on it.
-
-
-\section{Implementation and Benchmarks}
+\section{Implementation and Benchmark Design}
 \label{sec:seg-benchmark}
+The methods presented in this chapter were implemented in Python. 
+Criteria-based segmentation is integrated as a wrapper on the C++ segmentation framework provided by \cite{alewijnse2014segmentation}.
+The methods require \texttt{movingpandas.TrejectoryCollection} objects with metric coordinates (e.g. UTM) and return pointwise state labels together with segment boundaries.
+\Cref{alg:trajectory-segmentation} summarizes their application to the prepared trajectories.
+
+\begin{algorithm}[htbp]
+\caption{Trajectory segmentation and state annotation}
+\label{alg:trajectory-segmentation}
+\begin{algorithmic}[1]
+\Require trajectory collection $T$, method $m$, configuration $c$
+\Ensure state-annotated trajectory collection $T'$
+\State $T'\gets$ copy of $T$
+\If{$m$ is data-driven}
+    \State $B\gets$ prepared observation sequences from $T'$ \Comment{described in \Cref{subsec:seg-preprocessing}}
+    \State $Y\gets$ configured movement features within each sequence in $B$
+    \If{$m\in\{\text{Gaussian-HMM},\text{Movement-HMM}\}$}
+        \State Fit the configured HMM jointly to $Y$, preserving sequence boundaries
+        \State Decode point states with Viterbi; form segments from state runs
+    \ElsIf{$m=\text{PELT-clustering}$}
+        \State Detect PELT boundaries separately in each feature sequence
+        \State Summarize segments and cluster their descriptors jointly into $K$ states
+        \State Assign each segment's state to its observations
+    \Else \Comment{PELT-HMM hybrid}
+        \State Fit a Gaussian HMM jointly to $Y$, preserving sequence boundaries
+        \State Detect PELT boundaries separately in each feature sequence
+        \State Label each segment by posterior sums or a majority vote of Viterbi states
+    \EndIf
+\Else \Comment{Criteria-based segmentation}
+    \ForAll{trajectories $t$ in $T'$}
+        \State Find a minimum-segment partition satisfying the configured state criteria
+        \State Assign the corresponding rule labels to its segments
+    \EndFor
+\EndIf
+\State Append state labels and segment identifiers to $T'$
+\State \Return $T'$
+\end{algorithmic}
+\end{algorithm}
+
+An \texttt{AnnotationResult} contains the annotated collection and method-specific diagnostics.
+Additionally, color-coded segments are output as plots for each trajectory.
+In HMMs, segments are defined as runs of equal states. 
+PELT and hybrid outputs maintain detection boundaries, even when adjacent segments are assigned the same state.
+
+\subsection{Model choices}
+\label{subsec:seg-model-choices}
+\paragraph{State number and interpretation.}
+The number of states $K$ is specified for the application rather than interpreted as a discovered biological truth.
+AIC or BIC can guide comparisons of candidate state numbers on the same observations and feature representation.
+However, additional states can also compensate for model misspecification rather than represent distinct behaviours.
+The moveHMM authors recommend treating AIC as guidance and combining it with biological intuition and model assessment~\cite{Michelot2016moveHMM}.
+Accordingly, $K$ should reflect the study question, expert knowledge and diagnostics of the fitted model.
+
+\paragraph{Feature representation.}
+The Gaussian HMM supports alternative feature combinations, whereas Movement-HMM uses the fixed pair $(\ell_i,\theta_i^{\mathrm{sgn}})$ without standardization.
+For the planned PELT and hybrid comparison, each configuration uses one scalar feature, either persistence velocity $p_i$ or turning velocity $q_i=v_i\sin\theta_i^{\mathrm{sgn}}$.
+Both combine speed with a component relative to the preceding direction; their usefulness is assessed experimentally rather than assumed from their definitions.
+In the hybrid, the same scalar is supplied to PELT and its Gaussian HMM.
+This is an experimental restriction, not a limitation of the multivariate implementation.
+
+Redundant inputs can overweight the same movement information and are therefore excluded.
+Examples are step length with speed at a fixed sampling interval, duplicate angular representations, or $(p_i,q_i)$ with additional speed or turning angle.
+Standardization removes unit differences but not these dependencies: duplicates affect both diagonal Gaussian emission likelihoods and the distances used by PELT and clustering.
+
+\paragraph{Shared assumptions.}
+A single fit pools the retained sequences, assuming common state parameters but separate state chains.
+The HMMs use time-homogeneous, first-order transitions and conditionally independent feature emissions; state durations are consequently geometric in observation steps, not explicitly modelled durations.
+Neither variant includes a separate position-error model, so location error should be small relative to the displacements being interpreted.
+Gaussian features are standardized over the fitted observations; PELT standardizes each input sequence and subsequently the pooled segment descriptors.
+HMM parameters are estimated by Baum--Welch; among numerical initializations, the highest finite likelihood is retained, with convergence checked separately.
+
+\subsection{Candidate studies and movement references}
+\label{subsec:seg-benchmark-design}
+\Cref{tab:seg-benchmark-studies} is a provisional inventory, not a final inclusion decision.
+Counts refer to the local converted files before benchmark sampling selection.
+The runners currently exclude Bettong by default; it remains listed to make its optional status explicit.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Candidate data collections for the segmentation benchmark. Final inclusion remains open.}
+\label{tab:seg-benchmark-studies}
+\begin{tabularx}{\textwidth}{@{}l r >{\raggedright\arraybackslash}X@{}}
+\toprule
+Collection & CSVs & Available reference and main qualification \\
+\midrule
+Observed oystercatchers & 1 & 11,637 annotated fixes from three birds; observed behavioural labels. \\
+Vlieland oystercatchers & 1 & 8,686 fixes from 18 birds; 8,611 exact matches to acceleration-derived behaviour labels. \\
+Terns & 18 & 243,338 positions across four species; observed behaviour with following-boat GPS as a movement proxy. \\
+Essex cattle & 1 & 12,068 positions from three animals; only 71 have exactly matched grazing/non-grazing observations. \\
+Bettongs (optional) & 1 & 26,154 positions from 25 animals; provided states without an established independent observational reference. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Reference labels are grouped before choosing $K$ and scoring: sitting, standing and body care become \emph{inactive/maintenance}, food-search labels become \emph{foraging}, and walking or flying become \emph{travel}.
+These are coarse movement categories, not claims of identical kinematics.
+Cattle \emph{not-grazing} remains a separate complement class because it does not imply inactivity.
+Original labels and the grouping table are retained.
+The eighteen tern files are subdivisions of one data collection, not eighteen independent biological replications.
+
+\subsection{Stage 1: parameter selection}
+\label{subsec:seg-parameter-selection}
+The following bounded candidate sets prepare the experiments; they are not reported optima.
+For each study, fix the retained observation blocks and grouped reference vocabulary before comparing configurations.
+Set $K$ to the number of these reference groups for the main comparison, with expert-motivated alternatives examined separately.
+This uses reference knowledge for model size, not for fitting emissions or segment boundaries.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Proposed parameter search. The final candidate list is fixed before the comparison.}
+\label{tab:seg-parameter-search}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Method & Feature candidates & Main choices \\
+\midrule
+Gaussian HMM & $p_i$; $q_i$; $(v_i,\theta_i)$; $(a_i,\theta_i^{\mathrm{sgn}})$; $(\ell_i,\theta_i^{\mathrm{sgn}})$ & Standardized features; fixed $K$; the last pair is an emission-family control. \\
+Movement-HMM & $(\ell_i,\theta_i^{\mathrm{sgn}})$ & Zero-step point mass enabled; disable only if all supplied steps are positive. \\
+PELT-clustering & $p_i$ or $q_i$, separately & $\beta\in\{0.5,2,8\}$, $m_{\min}\in\{2,3,5\}$; $\texttt{jump}=1$. \\
+PELT-HMM & $p_i$ or $q_i$, separately & Same grid, with posterior-sum and majority-vote aggregation. \\
+Criteria & Spatial, temporal and directional rules & Small study-specific grids of disk radii, minimum durations and heading ranges. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The proposed grid contains 18 PELT and 36 hybrid configurations per study; any refinement is documented separately.
+Minimum sizes are observation counts, so their corresponding durations must also be reported.
+The common HMM fitting budget is 150 EM iterations and three initializations, rather than tuning seeds against reference scores.
+Select configurations by a predeclared Macro-IoU criterion, considering coverage and fit status; distinguish a shared configuration from study-specific optima.
+
+The editable HMM runner already accepts feature candidates, and the shared runner evaluates explicit PELT/hybrid configuration lists.
+The Oystercatcher parameter-search and PELT-sweep scripts provide existing grid-search patterns.
+Applying the proposed search across the selected studies and freezing the winning configurations remains an experimental step; the current example lists are not search results.
+Criteria segmentation still requires an adapter to the common study runner.
+
+\subsection{Stage 2: evaluation of fixed configurations}
+\label{subsec:seg-method-comparison}
+\begin{itemize}
+    \item Compare the frozen configurations on the same retained blocks and eligible reference points, excluding the two context fixes per block from scoring.
+    Different feature requirements may still produce different prediction coverage.
+    \item Match neutral states to reference groups with a one-to-one assignment maximizing summed class IoU.
+    Report Macro-IoU, Macro-F1, balanced accuracy and coverage; state-wise accuracy is $100\,\mathrm{TP}_s/(\mathrm{TP}_s+\mathrm{FN}_s)$, i.e. recall in percent.
+    Missing predictions count as errors; unknown reference labels are not scored.
+    \item Report detection-segment counts and final state-run counts separately, together with recorded run time and fit diagnostics.
+    The current timer includes sampling selection and diagnostic/export work, so it is not a pure model-fitting time.
+    \item Present per-study results and collection-level summaries, plus selected spatial and state-sequence plots.
+    Do not treat the number of tern CSVs as independent replication or let that subdivision determine the overall ranking.
+\end{itemize}
+
+The current runner fits and scores on the same observations and learns the state-label correspondence from those references.
+Parameter selection using these scores is therefore descriptive in-sample tuning.
+A claim about generalization would require a separate development/test design with frozen preprocessing and state correspondence; that split is not currently implemented.
+Numerical results and the final study selection remain to be filled in.
+
+\subsection{Planned moveHMM reference}
+\label{subsec:seg-movehmm-reference}
+An R moveHMM fit is planned as an additional reference on the same steps, turns, sequence boundaries and evaluation cohort.
+The existing \texttt{movehmm\_\allowbreak{}reference.R} is a starting point, not yet a common-runner adapter.
+Before comparison, harmonize zero-step and missing-angle treatment, angular means and initial-state assumptions; the existing R script fixes angular means at zero and uses a stationary start distribution, whereas the Python variant estimates both freely.
+No numerical equivalence is assumed before this comparison is run.
+
+\subsection{Reproducible experiment output}
+\label{subsec:seg-reproducibility}
+The shared runner in \texttt{benchmarks/\allowbreak{}hmm\_\allowbreak{}studies.py} records each effective configuration and its scores, point predictions, class metrics and fit diagnostics as CSV files, alongside reference-group mappings and input/code/version metadata.
+The editable entry points are \texttt{run\_\allowbreak{}hmm\_\allowbreak{}studies.py} and \texttt{run\_\allowbreak{}pelt\_\allowbreak{}hybrid\_\allowbreak{}studies.py}; saved run references can be plotted without refitting.
+Configuration names are identifiers only: feature lists and aggregation settings must be read from the saved effective options.
+% Redaktion: Aktuelle Beispiele verwenden acceleration + signed_turn_angle (Gaussian)
+% sowie speed (PELT/Hybrid) und majority_vote trotz des Namens pelt_hmm_posterior.
+% Die vorgeschlagene Suche in Tabelle tab:seg-parameter-search ist davon getrennt.
+% Literatur: docs/trajectory_segmentation_references.bib zur Hauptbibliographie hinzufügen.
 
 
 % Literaturhinweise; BibTeX-Schlüssel erst an die vorhandene Datenbank anpassen.
